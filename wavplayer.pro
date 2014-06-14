@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += core gui
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG(release, debug|release) {
     message("Release build, disabling QDebug output.")
