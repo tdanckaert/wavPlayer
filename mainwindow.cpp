@@ -47,7 +47,8 @@ static int process(jack_nframes_t nframes, void* )
   set<vector<float>>::iterator i;
   while(jack_ringbuffer_read_space(inQueue) >= sizeof(i) ) {
     jack_ringbuffer_read(inQueue, (char*)&i, sizeof(i) );
-    if(haveSample && jack_ringbuffer_write_space(outQueue) >= sizeof(curSample)) {
+    if(haveSample && curSample != i 
+       && jack_ringbuffer_write_space(outQueue) >= sizeof(curSample)) {
       jack_ringbuffer_write(outQueue, (char*)&curSample, sizeof(curSample));
     }
     curSample = i;
@@ -107,11 +108,32 @@ static int process(jack_nframes_t nframes, void* )
   return 0;
 }
 
+void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
+  auto scene = ui->graphicsView->scene();
+
+  scene->clear();
+
+  auto map = QPixmap(sample->size()/300.0, 200);
+  map.fill();
+  QPainter painter(&map);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setRenderHint(QPainter::HighQualityAntialiasing);
+  vector<QPointF> points;
+  points.reserve(sample->size());
+  for(unsigned int i=0; i<sample->size(); ++i) {
+    points.push_back(QPointF(i/300.0, 100*sample->at(i) +100 ) );
+  }
+  painter.drawPolyline(&points[0], points.size());
+  scene->addPixmap(map);
+}
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
   ui->setupUi(this);
+
+  ui->graphicsView->setScene(new QGraphicsScene(this));
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), this, SLOT(pause()));
@@ -217,6 +239,7 @@ void MainWindow::on_actionOpen_triggered()
     if(iSample.first->size() 
        && jack_ringbuffer_write_space(inQueue) >= sizeof(iSample.first)) {
       jack_ringbuffer_write(inQueue, (const char *)&iSample.first, sizeof(iSample.first));
+      drawWave(iSample.first);
     } else {
       samples.erase(iSample.first);
     }

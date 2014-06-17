@@ -22,6 +22,8 @@ private:
 
   std::set<std::vector<float> > samples;
 
+  void drawWave(const std::set<std::vector<float> >::iterator&);
+
 private slots:
   void on_actionQuit_triggered();
   void on_actionOpen_triggered();
