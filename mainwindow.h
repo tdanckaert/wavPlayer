@@ -30,6 +30,7 @@ private slots:
   void pause();
   void cleanup(void);
 
+  void on_splitter_splitterMoved(int pos, int index);
 };
 
 #endif // MAINWINDOW_H

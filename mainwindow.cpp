@@ -9,6 +9,10 @@
 #include <QShortcut>
 #include <QTimer>
 #include <QDebug>
+#include <QGraphicsItem>
+#include <QGraphicsPixmapItem>
+#include <QApplication>
+#include <QDesktopWidget>
 
 #include <sndfile.hh>
 #include <jack/jack.h>
@@ -26,8 +30,6 @@ enum PlayState {
   PLAYING,
   STOPPED
 };
-
-//static bool isPlaying;
 
 static bool haveSample;
 set<vector<float>>::iterator curSample;
@@ -109,22 +111,28 @@ static int process(jack_nframes_t nframes, void* )
 }
 
 void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
-  auto scene = ui->graphicsView->scene();
-
+  auto scene = ui->waveOverview->scene();
   scene->clear();
 
-  auto map = QPixmap(sample->size()/300.0, 200);
-  map.fill();
-  QPainter painter(&map);
-  painter.setRenderHint(QPainter::Antialiasing);
-  painter.setRenderHint(QPainter::HighQualityAntialiasing);
+  auto height = 0.6 *  QApplication::desktop()->screenGeometry().height();
   vector<QPointF> points;
   points.reserve(sample->size());
+  float ampl = 0.5*height;
   for(unsigned int i=0; i<sample->size(); ++i) {
-    points.push_back(QPointF(i/300.0, 100*sample->at(i) +100 ) );
+    points.push_back(QPointF(i/150.0, ampl*sample->at(i) +ampl ) );
   }
+
+  auto map = QPixmap(sample->size()/150.0, height);
+  map.fill();
+
+  QPainter painter(&map);
+  painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
+
   painter.drawPolyline(&points[0], points.size());
-  scene->addPixmap(map);
+  auto item = scene->addPixmap(map);
+
+  ui->waveOverview->fitInView(item);
+  ui->waveOverview->setSceneRect(item->boundingRect());
 }
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -133,7 +141,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
   ui->setupUi(this);
 
-  ui->graphicsView->setScene(new QGraphicsScene(this));
+  ui->waveOverview->setScene(new QGraphicsScene(this));
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), this, SLOT(pause()));
@@ -253,4 +261,19 @@ void MainWindow::pause(void) {
   } else {
     cerr << "Can't write to eventBuffer" << endl;
   }
+}
+
+void MainWindow::on_splitter_splitterMoved(int pos, int index)
+{
+  QGraphicsItem *item = nullptr;
+
+  auto sample = samples.begin();
+  if(sample == samples.end())
+    return;
+
+  auto height = ui->waveOverview->frameRect().height();
+
+  item = ui->waveOverview->scene()->items().first();
+
+  ui->waveOverview->fitInView(item);
 }
