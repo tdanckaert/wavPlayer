@@ -20,8 +20,10 @@ QMAKE_CXXFLAGS += -std=c++0x
 LIBS += -ljack -lsndfile
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    waveview.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    waveview.h
 
 FORMS    += mainwindow.ui

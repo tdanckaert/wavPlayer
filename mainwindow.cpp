@@ -114,8 +114,12 @@ void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
   auto scene = ui->waveOverview->scene();
   scene->clear();
 
+  ui->waveOverview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
   auto height = 0.6 *  QApplication::desktop()->screenGeometry().height();
   vector<QPointF> points;
+  // todo: handle stereo
   points.reserve(sample->size());
   float ampl = 0.5*height;
   for(unsigned int i=0; i<sample->size(); ++i) {
@@ -123,7 +127,7 @@ void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
   }
 
   auto map = QPixmap(sample->size()/150.0, height);
-  map.fill();
+  map.fill(Qt::transparent);
 
   QPainter painter(&map);
   painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
@@ -131,8 +135,20 @@ void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
   painter.drawPolyline(&points[0], points.size());
   auto item = scene->addPixmap(map);
 
+  //auto bound = item->sceneBoundingRect();
+  //bound.setHeight(1.1*bound.height());
+  //ui->waveOverview->setSceneRect(item->boundingRect());
   ui->waveOverview->fitInView(item);
-  ui->waveOverview->setSceneRect(item->boundingRect());
+  // set scene rect using "maptoscene" (0,0), (width, height)?
+
+  // strange hack to set scene rectangle to actual bounding box of wave (taking into account transparency)
+  ui->waveOverview->setSceneRect(
+              QRectF(ui->waveOverview->mapToScene(QPoint(0,0)),
+                     ui->waveOverview->mapToScene(QPoint(ui->waveOverview->width(),ui->waveOverview->height()))));
+
+  qDebug() << "Scene rect: " << ui->waveOverview->sceneRect() << endl
+           << "pixmap dimension: " << map.width() << " x " << map.height();
+
 }
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -142,6 +158,8 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->setupUi(this);
 
   ui->waveOverview->setScene(new QGraphicsScene(this));
+  ui->waveOverview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), this, SLOT(pause()));
@@ -247,6 +265,7 @@ void MainWindow::on_actionOpen_triggered()
     if(iSample.first->size() 
        && jack_ringbuffer_write_space(inQueue) >= sizeof(iSample.first)) {
       jack_ringbuffer_write(inQueue, (const char *)&iSample.first, sizeof(iSample.first));
+      ui->zoomView->drawWave(&(*iSample.first), channels);
       drawWave(iSample.first);
     } else {
       samples.erase(iSample.first);
@@ -270,9 +289,6 @@ void MainWindow::on_splitter_splitterMoved(int pos, int index)
   auto sample = samples.begin();
   if(sample == samples.end())
     return;
-
-  auto height = ui->waveOverview->frameRect().height();
-
   item = ui->waveOverview->scene()->items().first();
 
   ui->waveOverview->fitInView(item);
