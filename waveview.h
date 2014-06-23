@@ -6,16 +6,24 @@
 
 class WaveView : public QGraphicsView
 {
-    Q_OBJECT
+  Q_OBJECT
 public:
   explicit WaveView(QWidget *parent = 0);
   void drawWave(const std::vector<float> *wave, unsigned int channels);
 
+  void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
+
+  void updateGraphics(void);
+
 private:
   unsigned int curPos; // current position of the view
-  int getOffset(unsigned int pixmapIndex); // get the position in the wave associated with pixmapIndex
+  int channels;
+  float height;
   std::vector<QGraphicsPixmapItem *> pixmaps;
-  std::vector<float> *wave;
+  const std::vector<float> *wave;
+
+protected:
+  void scrollContentsBy(int dx, int dy);
     
 signals:
     

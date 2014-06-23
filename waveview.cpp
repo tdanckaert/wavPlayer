@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QDesktopWidget>
+#include <QScrollBar>
 #include <QDebug>
 #include <QGraphicsPixmapItem>
 
@@ -18,56 +19,70 @@ WaveView::WaveView(QWidget *parent) :
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
-void WaveView::drawWave(const vector<float> *wave, unsigned int channels) {
-  auto height = 0.6 * QApplication::desktop()->screenGeometry().height();
-  float ampl = 0.5*height;
-  setSceneRect(0,0,wave->size()/channels, height);
+void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
+  pixmaps.clear();
+  scene()->clear();
+  this->wave = wave;
+  channels = nChannels;
+  height = 0.6 * QApplication::desktop()->screenGeometry().height();
 
-  scene()->addLine(0,ampl,wave->size()/channels,ampl);
+  setSceneRect(0,0,wave->size()/channels, height);
+  horizontalScrollBar()->setSliderPosition(0);
+
+  auto ampl = 0.5*height;
+  scene()->addLine(0, ampl, wave->size()/channels, ampl);
 
   // draw pixmaps:
-  pixmaps.reserve(3 + width()/TILEWIDTH); // enough to cover width + 1 margin at each side
-  qDebug() << "drawing" << (3 + width()/TILEWIDTH) << "tiles.";
-  for(unsigned int i=0; i< (3 + width()/TILEWIDTH); ++i) {
-    auto map = QPixmap(TILEWIDTH, height);
-    map.fill(Qt::transparent);
-
-    // get wave offset for pixmaps[i]
-    auto offset = getOffset(i);
-
-    if (offset >=0 && static_cast<unsigned int>(offset) < wave->size()/channels) {
-      qDebug() << "drawing at offset" << offset;
-      // draw pixmap
-      vector<QPointF> points;
-      points.reserve(1+TILEWIDTH);
-      for(unsigned int j = 0 ; j<= (TILEWIDTH) && j < wave->size()/channels-offset; ) {
-        points.push_back(QPointF(j, ampl*wave->at(offset+j) + ampl) );
-        j+=channels;
-      }
-      QPainter painter(&map);
-      QRectF rectangle(10.0, 20.0, 80.0, 60.0);
-
-      painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
-      painter.drawPolyline(&points[0], points.size());
-    }
-
-    // add to scene and store pointer in pixmaps
-    auto item = scene()->addPixmap(map);
-    qDebug() << "pixmap" << i << "set offset to" << offset;
-    if(offset >= 0) {
-      item->setPos(QPointF(offset, 0.0));
-    } else {
-      item->setVisible(false);
-    }
-    pixmaps.push_back(item);
-  }
-  for (auto item : pixmaps) {
-    qDebug() << item->pos();
+  pixmaps.resize(1+width()/TILEWIDTH);
+  for(unsigned int i=0; i<pixmaps.size(); ++i) {
+    pixmaps[i] = new QGraphicsPixmapItem();
+    scene()->addItem(pixmaps[i]);
+    drawPixmap(pixmaps[i], i*TILEWIDTH);
   }
 }
 
-//  |...|...<|...|...|...|>...|...|
-int WaveView::getOffset(unsigned int pixmapIndex) {
-  int viewOffset = static_cast<int>(curPos/TILEWIDTH);
-  return (viewOffset -1 + pixmapIndex ) * TILEWIDTH;
+void WaveView::scrollContentsBy(int dx, int dy) {
+  QGraphicsView::scrollContentsBy(dx,dy);
+  updateGraphics();
+}
+
+void WaveView::updateGraphics(void) {
+  // check all pixmaps are still in the correct position:
+  qDebug() << __func__;
+  unsigned int indexLeft = horizontalScrollBar()->value()/TILEWIDTH % pixmaps.size();
+  unsigned int wavePos =  (horizontalScrollBar()->value()/TILEWIDTH) * TILEWIDTH;
+  for(unsigned int i=0; i<pixmaps.size(); ++i) {
+    auto index = (indexLeft + i) % pixmaps.size();
+    auto pixmap = pixmaps[index];
+    if (pixmap->x() != wavePos) {
+      drawPixmap(pixmap, wavePos);
+    }
+    wavePos += TILEWIDTH;
+  }
+}
+
+void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
+  auto map = QPixmap(TILEWIDTH, height);
+  map.fill(Qt::transparent);
+
+  qDebug() << "draw new pixmap at wavePos" << wavePos << endl;
+  
+  auto ampl = 0.5*height;
+  if (wavePos < wave->size()/channels) {
+    // draw pixmap
+    vector<QPointF> points;
+    points.reserve(1+TILEWIDTH);
+    for(unsigned int j = 0 ; j<= (TILEWIDTH) && j < (wave->size()/channels-wavePos); ) {
+      points.push_back(QPointF(j, ampl*wave->at(wavePos+j) + ampl) );
+      j+=channels;
+    }
+    QPainter painter(&map);
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
+    painter.drawPolyline(&points[0], points.size());
+  }
+  
+  qDebug() << "set item position" << endl;
+  item->setPos(QPointF(wavePos, 0.0));
+  item->setVisible(true);
+  item->setPixmap(map);
 }
