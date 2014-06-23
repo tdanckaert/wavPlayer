@@ -5,6 +5,7 @@
 #include <QScrollBar>
 #include <QDebug>
 #include <QGraphicsPixmapItem>
+#include <QResizeEvent>
 
 #define TILEWIDTH 300
 
@@ -12,7 +13,8 @@ using std::vector;
 
 WaveView::WaveView(QWidget *parent) :
   QGraphicsView(parent),
-  curPos(0)
+  curPos(0),
+  wave(nullptr)
 {
   setScene(new QGraphicsScene(this));
   //  auto width = QApplication::desktop()->screenGeometry().width();
@@ -44,6 +46,19 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
 void WaveView::scrollContentsBy(int dx, int dy) {
   QGraphicsView::scrollContentsBy(dx,dy);
   updateGraphics();
+}
+
+void WaveView::resizeEvent(QResizeEvent* event ) {
+  if(wave) {
+    while(event->size().width() + TILEWIDTH > pixmaps.size() * TILEWIDTH) {
+      auto item = new QGraphicsPixmapItem();
+      qDebug() << __func__ << "add item to scene";
+      scene()->addItem(item);
+      qDebug() << __func__ << "add item to pixmaps";
+      pixmaps.push_back(item);
+    }
+    updateGraphics();
+  }
 }
 
 void WaveView::updateGraphics(void) {

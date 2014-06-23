@@ -24,6 +24,7 @@ private:
 
 protected:
   void scrollContentsBy(int dx, int dy);
+  void resizeEvent(QResizeEvent *event);
     
 signals:
     
