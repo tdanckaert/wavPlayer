@@ -19,6 +19,7 @@ private:
   unsigned int curPos; // current position of the view
   int channels;
   float height;
+  float zoomLevel;
   std::vector<QGraphicsPixmapItem *> pixmaps;
   const std::vector<float> *wave;
 
