@@ -28,19 +28,25 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
   channels = nChannels;
   height = 0.6 * QApplication::desktop()->screenGeometry().height();
 
-  setSceneRect(0,0,wave->size()/(zoomLevel*channels), height);
-  horizontalScrollBar()->setSliderPosition(0);
+  scene()->setSceneRect(0,0,static_cast<float>(wave->size()/channels)/zoomLevel, height);
+  qDebug() << "sample length:" << wave->size()/channels << endl
+           << "sceneRect" << scene()->sceneRect();
 
   auto ampl = 0.5*height;
-  scene()->addLine(0, ampl, wave->size()/(zoomLevel * channels), ampl);
+  scene()->addLine(0, ampl, static_cast<float>(wave->size()/channels)/zoomLevel, ampl);
 
   // draw pixmaps:
-  pixmaps.resize(1+width()/TILEWIDTH);
+  pixmaps.resize(2+width()/TILEWIDTH);
+  qDebug() << "width()=" << width() << endl
+           << "drawing" << (1+width()/TILEWIDTH) << "pixmaps";
+
   for(unsigned int i=0; i<pixmaps.size(); ++i) {
     pixmaps[i] = new QGraphicsPixmapItem();
     scene()->addItem(pixmaps[i]);
-    drawPixmap(pixmaps[i], i*TILEWIDTH);
+    drawPixmap(pixmaps[i], i*TILEWIDTH*zoomLevel);
   }
+
+  horizontalScrollBar()->setSliderPosition(0);
 }
 
 void WaveView::scrollContentsBy(int dx, int dy) {
@@ -56,7 +62,7 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
     qDebug() << __func__ << "add item to pixmaps";
     pixmaps.push_back(item);
   }
-  updateGraphics();
+  QGraphicsView::resizeEvent(event);
 }
 
 void WaveView::updateGraphics(void) {
@@ -84,13 +90,13 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   qDebug() << "draw new pixmap at wavePos" << wavePos;
   
   auto ampl = 0.5*height;
-  if (wavePos < wave->size()/channels) {
+  auto offset = wavePos*channels;
+  if (offset < wave->size()) {
     // draw pixmap
     vector<QPointF> points;
-    points.reserve(1+TILEWIDTH);
-    for(unsigned int j = 0 ; j<= (TILEWIDTH*zoomLevel) && (wavePos + j) < (wave->size()/channels); ) {
-      points.push_back(QPointF(j/zoomLevel, ampl*wave->at(wavePos+j) + ampl) );
-      j+=channels;
+    points.reserve(1+TILEWIDTH*zoomLevel);
+    for(unsigned int j = 0 ; j<= (TILEWIDTH*zoomLevel) && (offset+j*channels) < wave->size();++j) {
+      points.push_back(QPointF(j/zoomLevel, ampl*wave->at(offset+j*channels) + ampl) );
     }
     QPainter painter(&map);
     painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
