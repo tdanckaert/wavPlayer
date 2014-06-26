@@ -55,7 +55,8 @@ void WaveView::scrollContentsBy(int dx, int dy) {
 }
 
 void WaveView::resizeEvent(QResizeEvent* event ) {
-  while(event->size().width() + TILEWIDTH > pixmaps.size() * TILEWIDTH) {
+  while(wave &&
+        (event->size().width() + TILEWIDTH) > pixmaps.size() * TILEWIDTH) {
     auto item = new QGraphicsPixmapItem();
     qDebug() << __func__ << "add item to scene";
     scene()->addItem(item);
@@ -71,7 +72,7 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 void WaveView::updateGraphics(void) {
   // check all pixmaps are still in the correct position:
   qDebug() << __func__;
-  if(wave) {
+  if(pixmaps.size()) {
     unsigned int indexLeft = horizontalScrollBar()->value()/TILEWIDTH % pixmaps.size();
     unsigned int wavePos = (horizontalScrollBar()->value()/TILEWIDTH) * TILEWIDTH*zoomLevel;
     
