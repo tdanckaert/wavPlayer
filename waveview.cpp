@@ -63,6 +63,9 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
     pixmaps.push_back(item);
   }
   QGraphicsView::resizeEvent(event);
+
+  fitInView(QRectF(mapToScene(QPoint(2,2)),
+                   QSizeF(width(), height) ) );
 }
 
 void WaveView::updateGraphics(void) {
