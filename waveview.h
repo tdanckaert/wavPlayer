@@ -22,10 +22,13 @@ private:
   float zoomLevel;
   std::vector<QGraphicsPixmapItem *> pixmaps;
   const std::vector<float> *wave;
+  void updatePixmaps(void);
+  unsigned int visibleRange(void);
 
 protected:
   void scrollContentsBy(int dx, int dy);
   void resizeEvent(QResizeEvent *event);
+  void wheelEvent(QWheelEvent *event);
     
 signals:
     
