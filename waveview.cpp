@@ -15,7 +15,7 @@ using std::vector;
 WaveView::WaveView(QWidget *parent) :
   QGraphicsView(parent),
   curPos(0),
-  zoomLevel(10.0),
+  zoomLevel(1.0),
   wave(nullptr)
 {
   setScene(new QGraphicsScene(this));
@@ -90,6 +90,19 @@ void WaveView::wheelEvent(QWheelEvent *event) {
   auto zoomFact = event->delta() > 0
     ? 1.15 : 1/1.15;
   setTransform(transform() * QTransform::fromScale(zoomFact,1.0));
+  auto stretchRatio = transform().m11()*zoomLevel;
+  // either we have to zoom out
+  while (stretchRatio > 1.2) {
+    zoomLevel /= 1.2;
+    stretchRatio /= 1.2;
+  }
+  // or zoom in
+  while (stretchRatio < 1.0) {
+    zoomLevel *= 1.2;
+    stretchRatio *= 1.2;
+  }
+  qDebug() << "transform horizontal stretch: " << transform().m11() 
+           << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
   updatePixmaps();
   updateGraphics();
 }
@@ -100,7 +113,6 @@ void WaveView::updateGraphics(void) {
   if(pixmaps.size()) {
     // get sample offset of the left border of the view
     auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
-    qDebug() << "xLeft = " << xLeft;
     assert(xLeft > 0);
 
     int samplesPerTile =  static_cast<int>(TILEWIDTH*zoomLevel);
@@ -110,7 +122,7 @@ void WaveView::updateGraphics(void) {
     for(unsigned int i=0; i<pixmaps.size(); ++i) {
       auto index = (indexLeft + i) % pixmaps.size();
       auto pixmap = pixmaps[index];
-      qDebug() << "pixmap" << index << ": wavePos =" << wavePos << ", x() =" << pixmap->x();
+      //      qDebug() << "pixmap" << index << ": wavePos =" << wavePos << ", x() =" << pixmap->x();
       if (fabs(pixmap->x() - wavePos) > 1) {
         drawPixmap(pixmap, wavePos);
       }
