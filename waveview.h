@@ -13,16 +13,16 @@ public:
 
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
 
-  void updateGraphics(void);
-
 private:
   unsigned int curPos; // current position of the view
   int channels;
   float height;
   float zoomLevel;
+  bool updateAll;
   std::vector<QGraphicsPixmapItem *> pixmaps;
   const std::vector<float> *wave;
   void updatePixmaps(void);
+  void updateGraphics(void);
   unsigned int visibleRange(void);
 
 protected:
