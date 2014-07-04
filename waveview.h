@@ -29,6 +29,7 @@ protected:
   void scrollContentsBy(int dx, int dy);
   void resizeEvent(QResizeEvent *event);
   void wheelEvent(QWheelEvent *event);
+  void paintEvent(QPaintEvent *event);
     
 signals:
     

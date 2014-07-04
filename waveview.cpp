@@ -54,7 +54,6 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
   }
 
   updateAll = true;
-  updateGraphics();
 
   horizontalScrollBar()->setSliderPosition(0);
 }
@@ -62,7 +61,6 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
 void WaveView::scrollContentsBy(int dx, int dy) {
   qDebug() << __func__ << dx << dy;
   QGraphicsView::scrollContentsBy(dx,dy);
-  updateGraphics();
 }
 
 void WaveView::updatePixmaps(void) {
@@ -111,8 +109,12 @@ void WaveView::wheelEvent(QWheelEvent *event) {
   qDebug() << "transform horizontal stretch: " << transform().m11() 
            << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
   updatePixmaps();
-  updateGraphics();
 }
+
+void WaveView::paintEvent(QPaintEvent *event) {
+  updateGraphics();
+  QGraphicsView::paintEvent(event);
+};
 
 void WaveView::updateGraphics(void) {
   // check all pixmaps are still in the correct position:
