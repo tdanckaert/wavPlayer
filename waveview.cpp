@@ -38,23 +38,8 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
   auto ampl = 0.5*height;
   scene()->addLine(0, ampl, static_cast<float>(wave->size()/channels), ampl);
 
-  // draw pixmaps:
-  auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
-  auto xRight = static_cast<int>(mapToScene(QPoint(std::max(viewport()->width()-4, 0),
-                                                   0)).x());
-  unsigned int visibleRange = xRight - xLeft;
-  int samplesPerTile =  static_cast<int>(TILEWIDTH*zoomLevel);
-  pixmaps.resize(2+static_cast<int>(visibleRange/samplesPerTile));
-  qDebug() << "width()=" << width() << endl
-           << "drawing" << (1+width()/TILEWIDTH) << "pixmaps";
-
-  for(unsigned int i=0; i<pixmaps.size(); ++i) {
-    pixmaps[i] = new QGraphicsPixmapItem();
-    scene()->addItem(pixmaps[i]);
-  }
-
+  updatePixmaps();
   updateAll = true;
-
   horizontalScrollBar()->setSliderPosition(0);
 }
 
@@ -164,6 +149,7 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
       points.push_back(QPointF(j/zoomLevel, ampl*wave->at(offset+j*channels) + ampl) );
     }
     QPainter painter(&map);
+
     painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
     qDebug() << "drawing" << points.size() <<"samples";
     painter.drawPolyline(&points[0], points.size());
