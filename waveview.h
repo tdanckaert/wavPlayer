@@ -18,6 +18,7 @@ private:
   int channels;
   float height;
   float zoomLevel;
+  float maxAmplitude;
   bool updateAll;
   std::vector<QGraphicsPixmapItem *> pixmaps;
   const std::vector<float> *wave;

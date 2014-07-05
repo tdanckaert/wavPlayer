@@ -6,7 +6,9 @@
 #include <QDebug>
 #include <QGraphicsPixmapItem>
 #include <QResizeEvent>
+
 #include <assert.h>
+#include <algorithm>
 
 #define TILEWIDTH 300
 
@@ -30,13 +32,12 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
   height = 0.6 * QApplication::desktop()->screenGeometry().height();
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->size()/channels), height);
-  qDebug() << "sample length:" << wave->size()/channels << endl
-           << "sceneRect" << scene()->sceneRect();
-
   setTransform(QTransform::fromScale(1/zoomLevel,1.0));
 
-  auto ampl = 0.5*height;
-  scene()->addLine(0, ampl, static_cast<float>(wave->size()/channels), ampl);
+  maxAmplitude = fabs(*std::max_element(wave->begin(), wave->end(), 
+                                        [] (decltype(wave->at(0)) a, decltype(wave->at(0)) b) { return fabs(a) < fabs(b); }));
+
+  scene()->addLine(0, 0.5*height, static_cast<float>(wave->size()/channels), 0.5*height);
 
   updatePixmaps();
   updateAll = true;
@@ -53,23 +54,21 @@ void WaveView::updatePixmaps(void) {
   while(wave &&
         (visibleRange() + samplesPerTile > pixmaps.size() * samplesPerTile) ) {
     auto item = new QGraphicsPixmapItem();
-    qDebug() << __func__ << "add item to scene";
     scene()->addItem(item);
-    qDebug() << __func__ << "add item to pixmaps";
     pixmaps.push_back(item);
    }
 }
 
 unsigned int WaveView::visibleRange(void) {
-  auto xLeft = static_cast<int>(mapToScene(QPoint(0,0)).x());
+  auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
   // the width of the visible scene is equal to (viewport width - 4) (border of 2px on each side?)
-  auto xRight = static_cast<int>(mapToScene(QPoint(std::max(viewport()->width()-4,0),0)).x());
+  auto xRight = static_cast<int>(mapToScene(QPoint(std::max(viewport()->width()-2,0),0)).x());
   return xRight - xLeft;
 }
 
 void WaveView::resizeEvent(QResizeEvent* event ) {
   QGraphicsView::resizeEvent(event);
-  fitInView(QRectF(mapToScene(QPoint(2,2)),
+  fitInView(QRectF(mapToScene(QPoint(2,0)),
                    QSizeF(visibleRange(), height) ) );
   updatePixmaps();
 }
@@ -120,7 +119,6 @@ void WaveView::updateGraphics(void) {
     for(unsigned int i=0; i<pixmaps.size(); ++i) {
       auto index = (indexLeft + i) % pixmaps.size();
       auto pixmap = pixmaps[index];
-      //      qDebug() << "pixmap" << index << ": wavePos =" << wavePos << ", x() =" << pixmap->x();
       if (updateAll || fabs(pixmap->x() - wavePos) > 1) {
         qDebug() << "pixmap at" <<  pixmap->x() << "wavePos:" << wavePos;
         drawPixmap(pixmap, wavePos);
@@ -137,7 +135,8 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
 
   qDebug() << "draw new pixmap at wavePos" << wavePos;
   
-  auto ampl = 0.5*height;
+  auto ampl = 0.5*height/maxAmplitude;
+  auto center = 0.5*height;
   auto offset = wavePos*channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
@@ -146,7 +145,7 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
     vector<QPointF> points;
     points.reserve(1+samplesPerTile);
     for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*channels) < wave->size();++j) {
-      points.push_back(QPointF(j/zoomLevel, ampl*wave->at(offset+j*channels) + ampl) );
+      points.push_back(QPointF(j/zoomLevel, -ampl*wave->at(offset+j*channels) + center ) );
     }
     QPainter painter(&map);
 
