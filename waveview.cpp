@@ -16,7 +16,6 @@ using std::vector;
 
 WaveView::WaveView(QWidget *parent) :
   QGraphicsView(parent),
-  curPos(0),
   zoomLevel(5.0),
   wave(nullptr)
 {
@@ -29,18 +28,16 @@ void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
   scene()->clear();
   this->wave = wave;
   channels = nChannels;
-  height = 0.6 * QApplication::desktop()->screenGeometry().height();
 
-  scene()->setSceneRect(0,0,static_cast<float>(wave->size()/channels), height);
+  scene()->setSceneRect(0,0,static_cast<float>(wave->size()/channels), pixmapHeight());
   setTransform(QTransform::fromScale(1/zoomLevel,1.0));
 
   maxAmplitude = fabs(*std::max_element(wave->begin(), wave->end(), 
                                         [] (decltype(wave->at(0)) a, decltype(wave->at(0)) b) { return fabs(a) < fabs(b); }));
 
-  scene()->addLine(0, 0.5*height, static_cast<float>(wave->size()/channels), 0.5*height);
+  scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->size()/channels), 0.5*pixmapHeight());
 
   updatePixmaps();
-  updateAll = true;
   horizontalScrollBar()->setSliderPosition(0);
 }
 
@@ -69,7 +66,7 @@ unsigned int WaveView::visibleRange(void) {
 void WaveView::resizeEvent(QResizeEvent* event ) {
   QGraphicsView::resizeEvent(event);
   fitInView(QRectF(mapToScene(QPoint(2,0)),
-                   QSizeF(visibleRange(), height) ) );
+                   QSizeF(visibleRange(), pixmapHeight()) ) );
   updatePixmaps();
 }
 
@@ -82,13 +79,11 @@ void WaveView::wheelEvent(QWheelEvent *event) {
   while (stretchRatio > 1.2) {
     zoomLevel /= 1.2;
     stretchRatio /= 1.2;
-    updateAll = true;
   }
   // or zoom in
   while (stretchRatio < 1.0) {
     zoomLevel *= 1.2;
     stretchRatio *= 1.2;
-    updateAll = true;
   }
   qDebug() << "transform horizontal stretch: " << transform().m11() 
            << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
@@ -113,30 +108,29 @@ void WaveView::updateGraphics(void) {
     unsigned int indexLeft = xLeft / samplesPerTile % pixmaps.size();
     unsigned int wavePos = xLeft / samplesPerTile * samplesPerTile;
 
-       qDebug() << "xLeft" << xLeft << "indexLeft:" << indexLeft << endl
-       << "wavePos" << wavePos << "updateAll?" << updateAll;
+    qDebug() << "xLeft" << xLeft << "indexLeft:" << indexLeft << endl
+             << "wavePos" << wavePos;
     
     for(unsigned int i=0; i<pixmaps.size(); ++i) {
       auto index = (indexLeft + i) % pixmaps.size();
       auto pixmap = pixmaps[index];
-      if (updateAll || fabs(pixmap->x() - wavePos) > 1) {
+      if ( fabs(pixmap->x() - wavePos) > 1 || pixmap->transform().m11() != zoomLevel ) {
         qDebug() << "pixmap at" <<  pixmap->x() << "wavePos:" << wavePos;
         drawPixmap(pixmap, wavePos);
       }
       wavePos += samplesPerTile;
     }
-    updateAll = false;
   }
 }
 
 void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
-  auto map = QPixmap(TILEWIDTH, height);
+  auto map = QPixmap(TILEWIDTH, pixmapHeight());
   map.fill(Qt::transparent);
 
   qDebug() << "draw new pixmap at wavePos" << wavePos;
   
-  auto ampl = 0.5*height/maxAmplitude;
-  auto center = 0.5*height;
+  auto ampl = 0.5*pixmapHeight()/maxAmplitude;
+  auto center = 0.5*pixmapHeight();
   auto offset = wavePos*channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
@@ -159,4 +153,8 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   item->setTransform(QTransform::fromScale(zoomLevel,1.0));
   item->setVisible(true);
   item->setPixmap(map);
+}
+
+inline float WaveView::pixmapHeight(void) {
+  return 0.6 * QApplication::desktop()->screenGeometry().height();
 }
