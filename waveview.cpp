@@ -61,9 +61,11 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 }
 
 void WaveView::wheelEvent(QWheelEvent *event) {
-  auto zoomFact = event->delta() > 0
+  auto scaleFact = event->delta() > 0
     ? 1.15 : 1/1.15;
-  setTransform(transform() * QTransform::fromScale(zoomFact,1.0));
+  // don't zoom in further if zoomLevel is already smaller than 1
+  if (scaleFact < 1.0 || zoomLevel > 1.0) 
+    setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
   auto stretchRatio = transform().m11()*zoomLevel;
   // either we have to zoom out
   while (stretchRatio > 1.2) {
