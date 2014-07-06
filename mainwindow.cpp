@@ -282,7 +282,7 @@ void MainWindow::pause(void) {
   }
 }
 
-void MainWindow::on_splitter_splitterMoved(int pos, int index)
+void MainWindow::on_splitter_splitterMoved(int pos __attribute__ ((unused)), int index __attribute__ ((unused)) )
 {
   QGraphicsItem *item = nullptr;
 
