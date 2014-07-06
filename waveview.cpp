@@ -39,7 +39,6 @@ void WaveView::drawWave(const Wave *wave) {
 
   horizontalScrollBar()->setSliderPosition(0);
   zoomLevel = 1/transform().m11();
-
 }
 
 void WaveView::scrollContentsBy(int dx, int dy) {
@@ -62,7 +61,7 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 
 void WaveView::wheelEvent(QWheelEvent *event) {
   auto scaleFact = event->delta() > 0
-    ? 1.15 : 1/1.15;
+    ? 1.10 : 1/1.10;
   // don't zoom in further if zoomLevel is already smaller than 1
   if (scaleFact < 1.0 || zoomLevel > 1.0) 
     setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
@@ -139,11 +138,13 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   auto offset = wavePos*wave->channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
+  unsigned int step = 1 + static_cast<unsigned int>(zoomLevel)/10;
+
   if (offset < wave->samples.size()) {
     // draw pixmap
     vector<QPointF> points;
-    points.reserve(1+samplesPerTile);
-    for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*wave->channels) < wave->samples.size();++j) {
+    points.reserve(1+samplesPerTile/step);
+    for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*wave->channels) < wave->samples.size(); j+=step) {
       points.push_back(QPointF(j/zoomLevel, -ampl*wave->samples[offset+j*wave->channels] + center ) );
     }
     QPainter painter(&map);
