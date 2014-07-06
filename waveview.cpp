@@ -148,6 +148,12 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
     }
     QPainter painter(&map);
 
+    if(zoomLevel < 1.1) {
+      QPen pen;
+      pen.setWidth(2);
+      painter.setPen(pen);
+    }
+
     painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
     qDebug() << "drawing" << points.size() <<"samples";
     painter.drawPolyline(&points[0], points.size());
