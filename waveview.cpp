@@ -66,19 +66,6 @@ void WaveView::wheelEvent(QWheelEvent *event) {
   // don't zoom in further if zoomLevel is already smaller than 1
   if (scaleFact < 1.0 || zoomLevel > 1.0) 
     setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
-  auto stretchRatio = transform().m11()*zoomLevel;
-  // either we have to zoom out
-  while (stretchRatio > 1.2) {
-    zoomLevel /= 1.2;
-    stretchRatio /= 1.2;
-  }
-  // or zoom in
-  while (stretchRatio < 1.0) {
-    zoomLevel *= 1.2;
-    stretchRatio *= 1.2;
-  }
-  qDebug() << "transform horizontal stretch: " << transform().m11() 
-           << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
 }
 
 void WaveView::paintEvent(QPaintEvent *event) {
@@ -86,14 +73,31 @@ void WaveView::paintEvent(QPaintEvent *event) {
   QGraphicsView::paintEvent(event);
 };
 
+inline void WaveView::checkZoomLevel(void) {
+  auto stretchRatio = transform().m11()*zoomLevel;
+  // we want to keep stretchRatio between 1.3 and 0.9
+  // either we have to zoom out
+  if (stretchRatio < 0.9 ) {
+    qDebug() << "zoom out";
+    zoomLevel = 1.29/transform().m11();
+  } else if (stretchRatio > 1.3) {
+    qDebug() << "zoom in";
+    zoomLevel = 0.91/transform().m11();
+  }
+  qDebug() << "transform horizontal stretch: " << transform().m11() 
+           << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
+}
+
 void WaveView::updateGraphics(void) {
   qDebug() << __func__;
+
+  checkZoomLevel();
 
   int samplesPerTile = static_cast<int>(TILEWIDTH*zoomLevel);
 
   // make sure we have enough pixmaps to cover the whole visible area
   while(wave &&
-        (visibleRange() + samplesPerTile > pixmaps.size() * samplesPerTile) ) {
+        (viewport()->width()/0.9 + TILEWIDTH) > pixmaps.size() * TILEWIDTH) {
     auto item = new QGraphicsPixmapItem();
     scene()->addItem(item);
     pixmaps.push_back(item);

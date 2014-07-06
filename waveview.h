@@ -21,6 +21,7 @@ private:
   const std::vector<float> *wave;
 
   float pixmapHeight(void);
+  void checkZoomLevel(void);
   void updateGraphics(void);
   unsigned int visibleRange(void);
 
