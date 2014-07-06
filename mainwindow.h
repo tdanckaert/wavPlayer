@@ -3,7 +3,8 @@
 
 #include <QMainWindow>
 #include <set>
-#include <vector>
+
+class Wave;
 
 namespace Ui {
 class MainWindow;
@@ -20,9 +21,9 @@ public:
 private:
   Ui::MainWindow *ui;
 
-  std::set<std::vector<float> > samples;
+  std::set<Wave> samples;
 
-  void drawWave(const std::set<std::vector<float> >::iterator&);
+  void drawWave(const std::set<Wave>::iterator&);
 
 private slots:
   void on_actionQuit_triggered();

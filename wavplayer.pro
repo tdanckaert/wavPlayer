@@ -24,6 +24,7 @@ SOURCES += main.cpp\
     waveview.cpp
 
 HEADERS  += mainwindow.h \
-    waveview.h
+    waveview.h \
+    wave.h
 
 FORMS    += mainwindow.ui

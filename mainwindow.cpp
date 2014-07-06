@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "wave.h"
+
 #include <stdio.h>
 #include <iostream>
 #include <iterator>
@@ -32,8 +34,7 @@ enum PlayState {
 };
 
 static bool haveSample;
-set<vector<float>>::iterator curSample;
-static int channels;
+set<Wave>::iterator curSample;
 static jack_port_t *outputPort;
 static jack_client_t *client;
 static unsigned int playbackIndex;
@@ -46,7 +47,7 @@ static jack_ringbuffer_t *outQueue; // samples out, can be freed
 static int process(jack_nframes_t nframes, void* )
 {
   // read and process incoming events
-  set<vector<float>>::iterator i;
+  set<Wave>::iterator i;
   while(jack_ringbuffer_read_space(inQueue) >= sizeof(i) ) {
     jack_ringbuffer_read(inQueue, (char*)&i, sizeof(i) );
     if(haveSample && curSample != i 
@@ -86,18 +87,18 @@ static int process(jack_nframes_t nframes, void* )
         {
           // here we check if index has gone played the last sample, and if it
           // has, then we reset it to 0 (the start of the sample).
-          if ( playbackIndex >= curSample->size() ) {
+          if ( playbackIndex >= curSample->samples.size() ) {
             playbackIndex = 0;
           }
     
           // because we have made sure that index is always between 0 -> sample.size(),
           // its safe to access the array .at(index)  The program would crash it furthur
-          outputBuffer[i] = curSample->at(playbackIndex++);
+          outputBuffer[i] = curSample->samples[playbackIndex++];
           
-          for(int j=1; j<channels; ++j) {
-            outputBuffer[i] += curSample->at(playbackIndex++);
+          for(unsigned int j=1; j<curSample->channels; ++j) {
+            outputBuffer[i] += curSample->samples[playbackIndex++];
           }
-          outputBuffer[i] /= channels;
+          outputBuffer[i] /= curSample->channels;
         }
       break;
     case STOPPED:
@@ -110,7 +111,7 @@ static int process(jack_nframes_t nframes, void* )
   return 0;
 }
 
-void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
+void MainWindow::drawWave(const set<Wave>::iterator &wave) {
   auto scene = ui->waveOverview->scene();
   scene->clear();
 
@@ -120,13 +121,13 @@ void MainWindow::drawWave(const set<vector<float> >::iterator &sample) {
   auto height = 0.6 *  QApplication::desktop()->screenGeometry().height();
   vector<QPointF> points;
   // todo: handle stereo
-  points.reserve(sample->size());
+  points.reserve(wave->samples.size());
   float ampl = 0.5*height;
-  for(unsigned int i=0; i<sample->size(); ++i) {
-    points.push_back(QPointF(i/150.0, ampl*sample->at(i) +ampl ) );
+  for(unsigned int i=0; i<wave->samples.size(); ++i) {
+    points.push_back(QPointF(i/150.0, ampl*wave->samples[i] +ampl ) );
   }
 
-  auto map = QPixmap(sample->size()/150.0, height);
+  auto map = QPixmap(wave->samples.size()/150.0, height);
   map.fill(Qt::transparent);
 
   QPainter painter(&map);
@@ -218,9 +219,7 @@ void MainWindow::on_actionQuit_triggered()
     QCoreApplication::quit();
 }
 
-vector<float> openSoundFile(QString fileName) {
-
-  vector<float> result;
+Wave openSoundFile(QString fileName) {
 
   // create a "Sndfile" handle, it's part of the sndfile library we 
   // use to load samples
@@ -232,23 +231,24 @@ vector<float> openSoundFile(QString fileName) {
   // handle size 0?
   
   // get some more info of the sample
-  channels   = fileHandle.channels();
+  int channels = fileHandle.channels();
   int samplerate = fileHandle.samplerate();
   
-  result.resize(channels*size);
+  //  result.resize(channels*size);
+  vector<float> samples(channels*size);
   
   // this tells sndfile to 
-  fileHandle.read( &result.at(0) , channels*size );
+  fileHandle.read( &samples.at(0) , samples.size() );
   
   qDebug() << "Loaded a file with " << channels << " channels, and a samplerate of " <<
     samplerate << " with " << size << " samples, so its duration is " <<
     size / samplerate << " seconds long.";
   
-  return result;
+  return Wave(std::move(samples), channels);
 }
 
 void MainWindow::cleanup(void) {
-  set<vector<float> >::iterator i;
+  set<Wave>::iterator i;
   while(jack_ringbuffer_read_space(outQueue) >= sizeof(i) ) {
     jack_ringbuffer_read(outQueue, (char*)&i, sizeof(i) );
     qDebug() << __func__ << ": erasing sample";
@@ -261,14 +261,14 @@ void MainWindow::on_actionOpen_triggered()
   auto fileName = QFileDialog::getOpenFileName();
   
   if(!fileName.isEmpty()) {
-    auto iSample = samples.insert(openSoundFile(fileName));
-    if(iSample.first->size() 
-       && jack_ringbuffer_write_space(inQueue) >= sizeof(iSample.first)) {
-      jack_ringbuffer_write(inQueue, (const char *)&iSample.first, sizeof(iSample.first));
-      ui->zoomView->drawWave(&(*iSample.first), channels);
-      drawWave(iSample.first);
+    auto iWave = samples.insert(openSoundFile(fileName));
+    if(iWave.first->samples.size() 
+       && jack_ringbuffer_write_space(inQueue) >= sizeof(iWave.first)) {
+      jack_ringbuffer_write(inQueue, (const char *)&iWave.first, sizeof(iWave.first));
+      ui->zoomView->drawWave(&(*iWave.first));
+      drawWave(iWave.first);
     } else {
-      samples.erase(iSample.first);
+      samples.erase(iWave.first);
     }
   }
 }

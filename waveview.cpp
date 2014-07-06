@@ -1,4 +1,5 @@
 #include "waveview.h"
+#include "wave.h"
 
 #include <QApplication>
 #include <QDesktopWidget>
@@ -23,19 +24,18 @@ WaveView::WaveView(QWidget *parent) :
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
-void WaveView::drawWave(const vector<float> *wave, unsigned int nChannels) {
+void WaveView::drawWave(const Wave *wave) {
   pixmaps.clear();
   scene()->clear();
   this->wave = wave;
-  channels = nChannels;
 
-  scene()->setSceneRect(0,0,static_cast<float>(wave->size()/channels), pixmapHeight());
-  fitInView(0,0,wave->size()/channels,pixmapHeight());
+  scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
+  fitInView(0,0,wave->samples.size()/wave->channels,pixmapHeight());
 
-  maxAmplitude = fabs(*std::max_element(wave->begin(), wave->end(), 
-                                        [] (decltype(wave->at(0)) a, decltype(wave->at(0)) b) { return fabs(a) < fabs(b); }));
+  maxAmplitude = fabs(*std::max_element(wave->samples.begin(), wave->samples.end(), 
+                                        [] (decltype(wave->samples[0]) a, decltype(wave->samples[0]) b) { return fabs(a) < fabs(b); }));
 
-  scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->size()/channels), 0.5*pixmapHeight());
+  scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->samples.size()/wave->channels), 0.5*pixmapHeight());
 
   horizontalScrollBar()->setSliderPosition(0);
   zoomLevel = 1/transform().m11();
@@ -136,15 +136,15 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   
   auto ampl = 0.5*pixmapHeight()/maxAmplitude;
   auto center = 0.5*pixmapHeight();
-  auto offset = wavePos*channels;
+  auto offset = wavePos*wave->channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
-  if (offset < wave->size()) {
+  if (offset < wave->samples.size()) {
     // draw pixmap
     vector<QPointF> points;
     points.reserve(1+samplesPerTile);
-    for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*channels) < wave->size();++j) {
-      points.push_back(QPointF(j/zoomLevel, -ampl*wave->at(offset+j*channels) + center ) );
+    for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*wave->channels) < wave->samples.size();++j) {
+      points.push_back(QPointF(j/zoomLevel, -ampl*wave->samples[offset+j*wave->channels] + center ) );
     }
     QPainter painter(&map);
 

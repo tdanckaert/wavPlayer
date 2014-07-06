@@ -4,21 +4,22 @@
 #include <QGraphicsView>
 #include <vector>
 
+class Wave;
+
 class WaveView : public QGraphicsView
 {
   Q_OBJECT
 public:
   explicit WaveView(QWidget *parent = 0);
-  void drawWave(const std::vector<float> *wave, unsigned int channels);
+  void drawWave(const Wave *wave);
 
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
 
 private:
-  int channels;
   float zoomLevel;
   float maxAmplitude;
   std::vector<QGraphicsPixmapItem *> pixmaps;
-  const std::vector<float> *wave;
+  const Wave *wave;
 
   float pixmapHeight(void);
   void checkZoomLevel(void);
