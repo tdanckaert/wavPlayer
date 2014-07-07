@@ -21,10 +21,13 @@ LIBS += -ljack -lsndfile
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    waveview.cpp
+    waveview.cpp \
+    wave.cpp \
+    jackplayer.cpp
 
 HEADERS  += mainwindow.h \
     waveview.h \
-    wave.h
+    wave.h \
+    jackplayer.h
 
 FORMS    += mainwindow.ui

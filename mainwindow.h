@@ -2,9 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <set>
 
-class Wave;
+#include "jackplayer.h"
 
 namespace Ui {
 class MainWindow;
@@ -20,16 +19,13 @@ public:
                                                    
 private:
   Ui::MainWindow *ui;
+  JackPlayer player;
 
-  std::set<Wave> samples;
-
-  void drawWave(const std::set<Wave>::iterator&);
+  void drawWave(const Wave*);
 
 private slots:
   void on_actionQuit_triggered();
   void on_actionOpen_triggered();
-  void pause();
-  void cleanup(void);
 
   void on_splitter_splitterMoved(int pos, int index);
 };

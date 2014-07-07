@@ -3,17 +3,21 @@
 
 #include <vector>
 
-class Wave {
+class QString;
 
- public:
- Wave(std::vector<float> samples, unsigned int channels) :
-  channels(channels),  samples(samples) {}
+class Wave {
+  
+public:
+  Wave(std::vector<float> samples, unsigned int channels) :
+    channels(channels),  samples(samples) {}
   
   bool operator<(const Wave& rhs) const 
   {
-    return samples < rhs.samples;  //assume that you compare the record based on a
+    return samples < rhs.samples;
   };
 
+  static Wave openSoundFile(const QString& fileName);
+  
   const unsigned int channels;
   const std::vector<float> samples;
 };

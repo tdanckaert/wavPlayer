@@ -3,115 +3,21 @@
 
 #include "wave.h"
 
-#include <stdio.h>
 #include <iostream>
-#include <iterator>
 
 #include <QFileDialog>
 #include <QShortcut>
-#include <QTimer>
 #include <QDebug>
 #include <QGraphicsItem>
 #include <QGraphicsPixmapItem>
 #include <QApplication>
 #include <QDesktopWidget>
 
-#include <sndfile.hh>
-#include <jack/jack.h>
-#include <jack/ringbuffer.h>
 using std::vector;
-using std::set;
 using std::cerr;
 using std::endl;
 
-enum PlayEvent {
-  PAUSE
-};
-
-enum PlayState {
-  PLAYING,
-  STOPPED
-};
-
-static bool haveSample;
-set<Wave>::iterator curSample;
-static jack_port_t *outputPort;
-static jack_client_t *client;
-static unsigned int playbackIndex;
-static PlayState state;
-static jack_ringbuffer_t *eventBuffer;
-
-static jack_ringbuffer_t *inQueue; // samples in
-static jack_ringbuffer_t *outQueue; // samples out, can be freed
-
-static int process(jack_nframes_t nframes, void* )
-{
-  // read and process incoming events
-  set<Wave>::iterator i;
-  while(jack_ringbuffer_read_space(inQueue) >= sizeof(i) ) {
-    jack_ringbuffer_read(inQueue, (char*)&i, sizeof(i) );
-    if(haveSample && curSample != i 
-       && jack_ringbuffer_write_space(outQueue) >= sizeof(curSample)) {
-      jack_ringbuffer_write(outQueue, (char*)&curSample, sizeof(curSample));
-    }
-    curSample = i;
-    haveSample = true;
-    playbackIndex = 0;
-  }
-
-  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(PlayEvent) ) {
-    PlayEvent e;
-    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(PlayEvent) );
-    switch(e) {
-    case PAUSE:
-      switch(state) {
-      case PLAYING:
-        state = STOPPED;
-        break;
-      case STOPPED:
-        state = haveSample ? PLAYING : STOPPED;
-        break;
-      }
-      break;
-    }
-  }
-
-  float* outputBuffer= (float*)jack_port_get_buffer ( outputPort, nframes);
-
-  // this is the intresting part, we work with each sample of audio data
-  // one by one, copying them across from the vector that has the sample
-  // in it, to the output buffer of JACK.
-    switch(state) {
-    case PLAYING:
-      for (jack_nframes_t i = 0; i < nframes; ++i)
-        {
-          // here we check if index has gone played the last sample, and if it
-          // has, then we reset it to 0 (the start of the sample).
-          if ( playbackIndex >= curSample->samples.size() ) {
-            playbackIndex = 0;
-          }
-    
-          // because we have made sure that index is always between 0 -> sample.size(),
-          // its safe to access the array .at(index)  The program would crash it furthur
-          outputBuffer[i] = curSample->samples[playbackIndex++];
-          
-          for(unsigned int j=1; j<curSample->channels; ++j) {
-            outputBuffer[i] += curSample->samples[playbackIndex++];
-          }
-          outputBuffer[i] /= curSample->channels;
-        }
-      break;
-    case STOPPED:
-      for (jack_nframes_t i=0; i < nframes; ++i) {
-        outputBuffer[i] = 0.;
-      }
-      break;
-    }
-  
-  return 0;
-}
-
-void MainWindow::drawWave(const set<Wave>::iterator &wave) {
+void MainWindow::drawWave(const Wave *wave) {
   auto scene = ui->waveOverview->scene();
   scene->clear();
 
@@ -136,11 +42,7 @@ void MainWindow::drawWave(const set<Wave>::iterator &wave) {
   painter.drawPolyline(&points[0], points.size());
   auto item = scene->addPixmap(map);
 
-  //auto bound = item->sceneBoundingRect();
-  //bound.setHeight(1.1*bound.height());
-  //ui->waveOverview->setSceneRect(item->boundingRect());
   ui->waveOverview->fitInView(item);
-  // set scene rect using "maptoscene" (0,0), (width, height)?
 
   // strange hack to set scene rectangle to actual bounding box of wave (taking into account transparency)
   ui->waveOverview->setSceneRect(
@@ -163,55 +65,12 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
-  connect(shortcutPlay, SIGNAL(activated()), this, SLOT(pause()));
-
-  auto timer = new QTimer(this);
-  connect(timer, SIGNAL(timeout()), this, SLOT(cleanup()));
-  timer->start(500);
-  
-  playbackIndex = 0;
-  outputPort = nullptr;
-  
-  client = jack_client_open("wavPlayer", JackNullOption, 0 , 0);
-  if (client == nullptr) {
-    cerr << __func__ << " client failed!" << endl;
-  }
-
-  size_t ringbufferSize = sizeof(PlayEvent)*10;
-  
-  eventBuffer = jack_ringbuffer_create(ringbufferSize);
-  jack_ringbuffer_mlock(eventBuffer);
-
-  inQueue = jack_ringbuffer_create(sizeof(set<vector<float>>::iterator)*10);
-  jack_ringbuffer_mlock(inQueue);
-  outQueue = jack_ringbuffer_create(sizeof(set<vector<float>>::iterator)*10);
-  jack_ringbuffer_mlock(outQueue);
-  
-  outputPort = jack_port_register ( client,
-                                    "output",
-                                    JACK_DEFAULT_AUDIO_TYPE,
-                                    JackPortIsOutput,
-                                    0 );
-
-  jack_set_process_callback  (client, process , 0);
-  
-  state = STOPPED;
-  haveSample = false;
-
-  jack_activate(client);
-
-  jack_connect(client, "wavPlayer:output", "system:playback_1");
-  jack_connect(client, "wavPlayer:output", "system:playback_2");
+  connect(shortcutPlay, SIGNAL(activated()), &player, SLOT(pause()));
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    jack_deactivate(client);
-    jack_ringbuffer_free(eventBuffer);
-    jack_ringbuffer_free(inQueue);
-    jack_ringbuffer_free(outQueue);
-    jack_client_close(client);
 }
 
 void MainWindow::on_actionQuit_triggered()
@@ -219,77 +78,19 @@ void MainWindow::on_actionQuit_triggered()
     QCoreApplication::quit();
 }
 
-Wave openSoundFile(QString fileName) {
-
-  // create a "Sndfile" handle, it's part of the sndfile library we 
-  // use to load samples
-  SndfileHandle fileHandle( fileName.toUtf8().data() , SFM_READ,  SF_FORMAT_WAV | SF_FORMAT_FLOAT , 1 , 44100);
-  
-  // get the number of frames in the sample
-  int size  = fileHandle.frames();
-
-  // handle size 0?
-  
-  // get some more info of the sample
-  int channels = fileHandle.channels();
-  int samplerate = fileHandle.samplerate();
-  
-  //  result.resize(channels*size);
-  vector<float> samples(channels*size);
-  
-  // this tells sndfile to 
-  fileHandle.read( &samples.at(0) , samples.size() );
-  
-  qDebug() << "Loaded a file with " << channels << " channels, and a samplerate of " <<
-    samplerate << " with " << size << " samples, so its duration is " <<
-    size / samplerate << " seconds long.";
-  
-  return Wave(std::move(samples), channels);
-}
-
-void MainWindow::cleanup(void) {
-  set<Wave>::iterator i;
-  while(jack_ringbuffer_read_space(outQueue) >= sizeof(i) ) {
-    jack_ringbuffer_read(outQueue, (char*)&i, sizeof(i) );
-    qDebug() << __func__ << ": erasing sample";
-    samples.erase(i);
- }
-}
-
 void MainWindow::on_actionOpen_triggered()
 {
-  auto fileName = QFileDialog::getOpenFileName();
-  
-  if(!fileName.isEmpty()) {
-    auto iWave = samples.insert(openSoundFile(fileName));
-    if(iWave.first->samples.size() 
-       && jack_ringbuffer_write_space(inQueue) >= sizeof(iWave.first)) {
-      jack_ringbuffer_write(inQueue, (const char *)&iWave.first, sizeof(iWave.first));
-      ui->zoomView->drawWave(&(*iWave.first));
-      drawWave(iWave.first);
-    } else {
-      samples.erase(iWave.first);
-    }
-  }
-}
-
-void MainWindow::pause(void) {
-  PlayEvent e = PAUSE;
-  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(PlayEvent)) {
-    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(PlayEvent));
-  } else {
-    cerr << "Can't write to eventBuffer" << endl;
+  auto pWave = player.loadWave(QFileDialog::getOpenFileName());
+  if (pWave != nullptr) {
+    drawWave(pWave);
+    ui->zoomView->drawWave(pWave);
   }
 }
 
 void MainWindow::on_splitter_splitterMoved(int pos __attribute__ ((unused)), int index __attribute__ ((unused)) )
 {
-  QGraphicsItem *item = nullptr;
+  auto item = ui->waveOverview->scene()->items().first();
 
-  auto sample = samples.begin();
-  if(sample == samples.end())
-    return;
-  item = ui->waveOverview->scene()->items().first();
-
-  ui->waveOverview->fitInView(item);
+  if (item != nullptr)
+    ui->waveOverview->fitInView(item);
 }
