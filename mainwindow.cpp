@@ -94,3 +94,23 @@ void MainWindow::on_splitter_splitterMoved(int pos __attribute__ ((unused)), int
   if (item != nullptr)
     ui->waveOverview->fitInView(item);
 }
+
+void MainWindow::on_actionStop_triggered()
+{
+  player.stop();
+}
+
+void MainWindow::on_actionLoop_triggered()
+{
+  player.loop();
+}
+
+void MainWindow::on_actionPlay_triggered()
+{
+  player.play();
+}
+
+void MainWindow::on_actionPause_triggered()
+{
+  player.pause();
+}

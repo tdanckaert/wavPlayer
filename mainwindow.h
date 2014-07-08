@@ -26,6 +26,10 @@ private:
 private slots:
   void on_actionQuit_triggered();
   void on_actionOpen_triggered();
+  void on_actionPlay_triggered();
+  void on_actionLoop_triggered();
+  void on_actionPause_triggered();
+  void on_actionStop_triggered();
 
   void on_splitter_splitterMoved(int pos, int index);
 };

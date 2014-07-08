@@ -10,7 +10,6 @@
 
 enum PlayState {
   PLAYING,
-  LOOP,
   STOPPED
 };
 
@@ -27,9 +26,17 @@ public:
 
   int process(jack_nframes_t nframes);
 
+  void stop();
+  void play();
+  void loop();
+
+public slots:
+  void pause();
+
 private:
   std::set<Wave> samples;
 
+  PlayState state;
   bool haveSample;
   std::set<Wave>::iterator curSample;
   jack_port_t *outputPort;
@@ -40,7 +47,6 @@ private:
   unsigned int loopEnd; /* 0 to curSample->size() */
   unsigned int playEnd;
 
-  PlayState state;
   jack_ringbuffer_t *eventBuffer;
 
   jack_ringbuffer_t *inQueue; // samples in
@@ -48,9 +54,8 @@ private:
 
   static int process_wrap(jack_nframes_t, void *);
   void timerEvent(QTimerEvent *event);
-
-private slots:
-  void pause();
+  class PlayEvent;
+  void sendEvent(const PlayEvent &e);
 };
 
 #endif
