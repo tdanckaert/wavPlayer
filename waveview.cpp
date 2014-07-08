@@ -138,14 +138,31 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   auto offset = wavePos*wave->channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
-  unsigned int step = 1 + static_cast<unsigned int>(zoomLevel)/10;
+  const unsigned int maxStep = 200;
+
+  // when zoomed out, don't draw each sample (becomes too slow)
+  unsigned int step = 1 + zoomLevel/2;
 
   if (offset < wave->samples.size()) {
     // draw pixmap
     vector<QPointF> points;
-    points.reserve(1+samplesPerTile/step);
+    points.reserve(1+2*samplesPerTile/step);
     for(unsigned int j = 0 ; j<= samplesPerTile && (offset+j*wave->channels) < wave->samples.size(); j+=step) {
-      points.push_back(QPointF(j/zoomLevel, -ampl*wave->samples[offset+j*wave->channels] + center ) );
+      float ymin = 1000;
+      float ymax = -1000;
+      unsigned int substep = step > 100 ? 1 : sqrt(step);
+      for(unsigned int k=0; k<step && (offset+ (k+j)*wave->channels < wave->samples.size()) ; k+=substep) {
+        auto y =wave->samples[offset+(j+k)*wave->channels];
+        if (y>ymax) {
+          ymax = y;
+        } else if (y < ymin) {
+          ymin = y;
+        }
+      }
+      if (ymin < 1000)
+        points.push_back(QPointF(j/zoomLevel, center -ampl*ymin) );
+      if (ymax > -1000)
+        points.push_back(QPointF(j/zoomLevel, center -ampl*ymax) );
     }
     QPainter painter(&map);
 
@@ -154,9 +171,7 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
       pen.setWidth(2);
       painter.setPen(pen);
     }
-
     painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
-    qDebug() << "drawing" << points.size() <<"samples";
     painter.drawPolyline(&points[0], points.size());
   }
   
