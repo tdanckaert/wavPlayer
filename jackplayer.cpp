@@ -8,32 +8,10 @@
 #include <QDebug>
 
 #include <sndfile.hh>
-//#include <jack/jack.h>
-#include <jack/ringbuffer.h>
 
 using std::set;
 using std::cerr;
 using std::endl;
-
-enum PlayState {
-  PLAYING,
-  STOPPED
-};
-
-enum PlayEvent {
-  PAUSE
-};
-
-static bool haveSample;
-static set<Wave>::iterator curSample;
-static jack_port_t *outputPort;
-static jack_client_t *client;
-static unsigned int playbackIndex;
-static PlayState state;
-static jack_ringbuffer_t *eventBuffer;
-
-static jack_ringbuffer_t *inQueue; // samples in
-static jack_ringbuffer_t *outQueue; // samples out, can be freed
 
 JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
  {
@@ -65,7 +43,7 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
                                     JackPortIsOutput,
                                     0 );
 
-  jack_set_process_callback( client, process, 0 );
+  jack_set_process_callback( client, process_wrap, this );
 
   state = STOPPED;
   haveSample = false;
@@ -86,7 +64,12 @@ JackPlayer::~JackPlayer(void) {
   qDebug() << __func__ << "closed client";
 }
 
-int JackPlayer::process(jack_nframes_t nframes, void *) {
+int JackPlayer::process_wrap(jack_nframes_t nframes, void *player) {
+  return static_cast<JackPlayer *>(player)->process(nframes);
+}
+
+int JackPlayer::process(jack_nframes_t nframes) {
+
   // read and process incoming events
   set<Wave>::iterator i;
   while(jack_ringbuffer_read_space(inQueue) >= sizeof(i) ) {
