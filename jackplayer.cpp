@@ -13,6 +13,19 @@ using std::set;
 using std::cerr;
 using std::endl;
 
+enum PlayCommand {
+  Play,
+  Loop,
+  Pause,
+  Stop
+};
+
+class PlayEvent {
+  int start;
+  int stop;
+  PlayCommand command;
+};
+
 JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
  {
 
@@ -83,11 +96,11 @@ int JackPlayer::process(jack_nframes_t nframes) {
     playbackIndex = 0;
   }
 
-  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(PlayEvent) ) {
-    PlayEvent e;
-    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(PlayEvent) );
+  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(PlayCommand) ) {
+    PlayCommand e;
+    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(PlayCommand) );
     switch(e) {
-    case PAUSE:
+    case Pause:
       switch(state) {
       case PLAYING:
         state = STOPPED;
@@ -134,9 +147,9 @@ int JackPlayer::process(jack_nframes_t nframes) {
 }
 
 void JackPlayer::pause(void) {
-  PlayEvent e = PAUSE;
-  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(PlayEvent)) {
-    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(PlayEvent));
+  PlayCommand e = Pause;
+  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(PlayCommand)) {
+    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(PlayCommand));
   } else {
     cerr << "Can't write to eventBuffer" << endl;
   }

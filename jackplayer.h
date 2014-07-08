@@ -8,16 +8,13 @@
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 
-class Wave;
+enum PlayState {
+  PLAYING,
+  LOOP,
+  STOPPED
+};
 
-  enum PlayState {
-    PLAYING,
-    STOPPED
-  };
-  
-  enum PlayEvent {
-    PAUSE
-  };
+class Wave;
 
 class JackPlayer : public QObject {
   Q_OBJECT
@@ -31,22 +28,26 @@ public:
   int process(jack_nframes_t nframes);
 
 private:
-  void timerEvent(QTimerEvent *event);
-
   std::set<Wave> samples;
-
-  static int process_wrap(jack_nframes_t, void *);
 
   bool haveSample;
   std::set<Wave>::iterator curSample;
   jack_port_t *outputPort;
   jack_client_t *client;
-  unsigned int playbackIndex;
+
+  unsigned int playbackIndex; /* 0 to curSample->size() */
+  unsigned int loopStart; /* 0 to curSample->size() */
+  unsigned int loopEnd; /* 0 to curSample->size() */
+  unsigned int playEnd;
+
   PlayState state;
   jack_ringbuffer_t *eventBuffer;
 
   jack_ringbuffer_t *inQueue; // samples in
   jack_ringbuffer_t *outQueue; // samples out, can be freed
+
+  static int process_wrap(jack_nframes_t, void *);
+  void timerEvent(QTimerEvent *event);
 
 private slots:
   void pause();
