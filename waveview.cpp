@@ -138,8 +138,6 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   auto offset = wavePos*wave->channels;
   auto samplesPerTile = static_cast<unsigned int>(TILEWIDTH*zoomLevel);
 
-  const unsigned int maxStep = 200;
-
   // when zoomed out, don't draw each sample (becomes too slow)
   unsigned int step = 1 + zoomLevel/2;
 
