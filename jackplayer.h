@@ -27,8 +27,8 @@ public:
   int process(jack_nframes_t nframes);
 
   void stop();
-  void play();
-  void loop();
+  void play(unsigned int start=0, unsigned int end=0);
+  void loop(unsigned int start=0, unsigned int end=0);
 
 public slots:
   void pause();
@@ -44,7 +44,6 @@ private:
 
   unsigned int playbackIndex; /* 0 to curSample->size() */
   unsigned int loopStart; /* 0 to curSample->size() */
-  unsigned int loopEnd; /* 0 to curSample->size() */
   unsigned int playEnd;
 
   jack_ringbuffer_t *eventBuffer;
@@ -54,8 +53,11 @@ private:
 
   static int process_wrap(jack_nframes_t, void *);
   void timerEvent(QTimerEvent *event);
-  class PlayEvent;
-  void sendEvent(const PlayEvent &e);
+  class Command;
+  void sendCommand(const Command &e);
+  void readCommands(void);
+  void writeBuffer(jack_nframes_t nframes);
+  void reset(void);
 };
 
 #endif

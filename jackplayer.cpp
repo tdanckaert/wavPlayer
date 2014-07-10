@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <iostream>
+#include <assert.h>
 
 #include <QTimer>
 #include <QDebug>
@@ -23,47 +24,38 @@ using std::endl;
  *
  */
 
-enum PlayCommand {
-  Play,
-  Loop,
-  Pause,
-  Stop
-};
-
-class JackPlayer::PlayEvent {
+class JackPlayer::Command {
 public:
-  int start;
-  int stop;
-  PlayCommand command;
+  enum Type {
+    Play,
+    Loop,
+    Pause,
+    Stop
+  };
 
-  PlayEvent(PlayCommand cmd=Stop, int start=0, int stop=0) : start(start),
-                                                        stop(stop),
-                                                        command(cmd) {};
+  unsigned int start;
+  unsigned int end;
+  Type type;
+
+  Command(Type t=Stop, int start=0, int end=0) : start(start),
+                                                 end(end),
+                                                 type(t) {};
 };
 
 JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
  {
-
-  playbackIndex = 0;
-  outputPort = nullptr;
-
-  playbackIndex = 0;
-  outputPort = nullptr;
-  
   client = jack_client_open("wavPlayer", JackNullOption, 0 , 0);
   if (client == nullptr) {
     cerr << __func__ << " client failed!" << endl;
   }
 
-  eventBuffer = jack_ringbuffer_create(sizeof(PlayEvent)*10);
+  eventBuffer = jack_ringbuffer_create(sizeof(Command)*10);
   jack_ringbuffer_mlock(eventBuffer);
 
   inQueue = jack_ringbuffer_create(sizeof(set<Wave>::iterator)*10);
   jack_ringbuffer_mlock(inQueue);
   outQueue = jack_ringbuffer_create(sizeof(set<Wave>::iterator)*10);
   jack_ringbuffer_mlock(outQueue);
-
-  startTimer(500);
   
   outputPort = jack_port_register ( client,
                                     "output",
@@ -75,6 +67,8 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
 
   state = STOPPED;
   haveSample = false;
+
+  startTimer(500);
 
   jack_activate(client);
 
@@ -98,9 +92,9 @@ int JackPlayer::process_wrap(jack_nframes_t nframes, void *player) {
 
 int JackPlayer::process(jack_nframes_t nframes) {
 
-  // read and process incoming events
-  set<Wave>::iterator i;
-  while(jack_ringbuffer_read_space(inQueue) >= sizeof(i) ) {
+  // queue new sample if needed
+  while(jack_ringbuffer_read_space(inQueue) >= sizeof(set<Wave>::iterator) ) {
+    set<Wave>::iterator i;
     jack_ringbuffer_read(inQueue, (char*)&i, sizeof(i) );
     if(haveSample && curSample != i 
        && jack_ringbuffer_write_space(outQueue) >= sizeof(curSample)) {
@@ -108,120 +102,106 @@ int JackPlayer::process(jack_nframes_t nframes) {
     }
     curSample = i;
     haveSample = true;
-    playbackIndex = loopStart = curSample->samples.size();
+    reset();
   }
 
-  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(PlayEvent) ) {
-    PlayEvent e;
-    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(PlayEvent) );
-    switch(e.command) {
-    case Play:
-      if (haveSample) {
-        state = PLAYING;
-        playEnd = curSample->samples.size();
-        loopStart = curSample->samples.size();
-      }
-      playbackIndex = 0;
-      //      playbackIndex=e.start;
-      //      playEnd=e.stop;
+  // read and process incoming events (play/pause/loop/...)
+  readCommands();
+
+  // write to Jack output buffer
+  writeBuffer(nframes);
+  return 0;
+}
+
+void JackPlayer::play(unsigned int start, unsigned int end) {
+  qDebug() << __func__;
+  sendCommand({Command::Play, start, end});
+}
+
+void JackPlayer::loop(unsigned int start, unsigned int end) {
+  qDebug() << __func__;
+  sendCommand({Command::Loop, start, end});
+}
+
+void JackPlayer::pause(void) {
+  qDebug() << __func__;
+  sendCommand(Command::Pause);
+}
+
+void JackPlayer::stop(void) {
+  qDebug() << __func__;
+  sendCommand(Command::Stop);
+}
+
+void JackPlayer::sendCommand(const Command &e) {
+  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(Command)) {
+    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(Command));
+  } else {
+    cerr << "Can't write to eventBuffer" << endl;
+  }
+}
+
+/* */
+inline void JackPlayer::reset(void) {
+  assert(haveSample);
+  playbackIndex = curSample->samples.size();
+  loopStart = curSample->samples.size();
+  playEnd = curSample->samples.size();
+}
+
+/* Read all queued events from eventBuffer. */
+void JackPlayer::readCommands(void) {
+  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(Command) ) {
+    Command e;
+    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(Command) );
+
+    if (!haveSample) {
+      // If no sample is loaded, we just empty the buffer and ignore the events
+      continue;
+    }
+
+    // Check that the command we received is valid for the current
+    // sample (in principle, we could receive commands for another
+    // sample due to synchronization issues)
+    if(e.start > curSample->samples.size() 
+       || e.end > curSample->samples.size()) {
+      reset();
+      state = STOPPED;
+      continue;
+    }
+    switch(e.type) {
+    case Command::Play:
+      reset();
+      state = PLAYING;
+      playbackIndex = e.start;
+      playEnd = e.end ? e.end : curSample->samples.size();
+      qDebug() << "Play: " << playbackIndex << playEnd;
       break;
-    case Loop:
-      if (haveSample) {
-        state = PLAYING;
-      //      loopStart = e.start;
-        loopStart = 0;
-      //      playEnd=e.stop;
-        playEnd = curSample->samples.size();
-        playbackIndex = loopStart;
-      }
+    case Command::Loop:
+      reset();
+      state = PLAYING;
+      loopStart = e.start;
+      playbackIndex = e.start;
+      playEnd = e.end ? e.end : curSample->samples.size();
+      qDebug() << "Loop: " << playbackIndex << playEnd;
       break;
-    case Pause:
+    case Command::Pause:
       switch(state) {
       qDebug() << "JackPlayer Pause/Unpause";
       case PLAYING:
         state = STOPPED;
         break;
       case STOPPED:
-        if (haveSample)
-          state = PLAYING;
+        state = PLAYING;
         break;
       }
       break;
-    case Stop:
+    case Command::Stop:
       qDebug() << "JackPlayer Stopping";
+      reset();
       state = STOPPED;
-      if (haveSample) {
-        playbackIndex = curSample->samples.size();
-        loopStart = curSample->samples.size();
-      }
       break;
     }
-  }
-
-  float* outputBuffer= (float*)jack_port_get_buffer ( outputPort, nframes);
-
-  // this is the intresting part, we work with each sample of audio data
-  // one by one, copying them across from the vector that has the sample
-  // in it, to the output buffer of JACK.
-
-
-  // Check if playbackIndex is past the end.  When in a loop: return to start, if not: stop.
-  if ( state==PLAYING && playbackIndex >= curSample->samples.size() ) {
-    if(loopStart < curSample->samples.size()) {
-      playbackIndex = loopStart;
-    } else {
-      state = STOPPED;
-    }
-  }
-  
-  switch(state) {
-  case PLAYING:
-    for (jack_nframes_t i = 0; i < nframes; ++i)
-      {
-        
-        outputBuffer[i] = curSample->samples[playbackIndex++];
-        
-        for(unsigned int j=1; j<curSample->channels; ++j) {
-          outputBuffer[i] += curSample->samples[playbackIndex++];
-        }
-        outputBuffer[i] /= curSample->channels;
-      }
-    break;
-  case STOPPED:
-    for (jack_nframes_t i=0; i < nframes; ++i) {
-      outputBuffer[i] = 0.;
-    }
-    break;
-  }
-  
-  return 0;
-}
-
-void JackPlayer::play(void) {
-  qDebug() << __func__;
-  sendEvent(Play);
-}
-
-void JackPlayer::loop(void) {
-  qDebug() << __func__;
-  sendEvent(Loop);
-}
-
-void JackPlayer::pause(void) {
-  qDebug() << __func__;
-  sendEvent(Pause);
-}
-
-void JackPlayer::stop(void) {
-  qDebug() << __func__;
-  sendEvent(Stop);
-}
-
-void JackPlayer::sendEvent(const PlayEvent &e) {
-  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(PlayEvent)) {
-    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(PlayEvent));
-  } else {
-    cerr << "Can't write to eventBuffer" << endl;
   }
 }
 
@@ -247,5 +227,29 @@ const Wave* JackPlayer::loadWave(const QString &fileName) {
     }
   } else {
     return nullptr;
+  }
+}
+
+void JackPlayer::writeBuffer(jack_nframes_t nframes) {
+  float* outputBuffer= static_cast<float*>(jack_port_get_buffer(outputPort, nframes));
+  
+  for (jack_nframes_t i = 0; i < nframes; ++i) {
+    // Check if playbackIndex is past the end.  When in a loop: return to start, if not: stop.
+    if (state == PLAYING && playbackIndex >= playEnd ) {
+      if(loopStart < curSample->samples.size()) {
+        playbackIndex = loopStart;
+      } else {
+        state = STOPPED;
+      }
+    }
+
+    outputBuffer[i] = 0.;
+    if (state == PLAYING) {
+      // for buffers with multiple channels, we just average every channel
+      for(unsigned int j=0; j<curSample->channels; ++j) {
+        outputBuffer[i] += curSample->samples[playbackIndex++];
+      }
+      outputBuffer[i] /= curSample->channels;
+    }
   }
 }
