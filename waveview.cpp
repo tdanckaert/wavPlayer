@@ -28,17 +28,22 @@ WaveView::WaveView(QWidget *parent) :
 
 void WaveView::drawWave(const Wave *wave) {
   pixmaps.clear();
+  cuts.clear();
   scene()->clear();
   QPen pen;
-  //  pen.setWidth();
   pen.setCosmetic(true);
-  pen.setColor(Qt::green);
+  auto color = QColor(Qt::green);
+  pen.setColor(color);
+  //  pen.setWidth(6);
   indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
   indicator->setZValue(1.0); // draw on top
   this->wave = wave;
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
   fitInView(0,0,wave->samples.size()/wave->channels,pixmapHeight());
+
+  cuts.push_back(addCut(0));
+  cuts.push_back(addCut(scene()->width()));
 
   maxAmplitude = fabs(*std::max_element(wave->samples.begin(), wave->samples.end(), 
                                         [] (decltype(wave->samples[0]) a, decltype(wave->samples[0]) b) { return fabs(a) < fabs(b); }));
@@ -73,6 +78,25 @@ void WaveView::wheelEvent(QWheelEvent *event) {
   // don't zoom in further if zoomLevel is already smaller than 1
   if (scaleFact < 1.0 || zoomLevel > 1.0) 
     setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+}
+
+void WaveView::mousePressEvent(QMouseEvent *event) {
+  qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
+  if(wave) {
+    auto scenePos = mapToScene(event->x(),event->y());
+    auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
+                               [scenePos] (decltype(cuts[0]) a) { 
+                                 //                                 qDebug() << a->x();
+                                 return ( a->line().x1() > scenePos.x() );});
+    if (event->button() == Qt::RightButton) {
+      QPen pen;
+      pen.setColor(Qt::red);
+      scene()->addLine(scenePos.x(),0,scenePos.x(),pixmapHeight(), pen);
+      cuts.insert(iAfter, addCut(scenePos.x()));
+    } else {
+      emit playCut((*(iAfter-1))->line().x1(), (*iAfter)->line().x1());
+    }
+  }
 }
 
 void WaveView::paintEvent(QPaintEvent *event) {
@@ -194,4 +218,12 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
 
 inline float WaveView::pixmapHeight(void) {
   return 0.6 * QApplication::desktop()->screenGeometry().height();
+}
+
+QGraphicsLineItem * WaveView::addCut(unsigned int pos) {
+  QPen pen;
+  pen.setColor(Qt::red);
+  auto line = scene()->addLine(pos,0,pos,pixmapHeight(), pen);
+  line->setFlag(QGraphicsItem::ItemIsMovable);
+  return line;
 }

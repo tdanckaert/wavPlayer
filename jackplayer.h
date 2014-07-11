@@ -24,14 +24,11 @@ public:
 
   const Wave* loadWave(const QString& filename);
 
-  int process(jack_nframes_t nframes);
-
-  void stop();
-  void play(unsigned int start=0, unsigned int end=0);
-  void loop(unsigned int start=0, unsigned int end=0);
-
 public slots:
   void pause();
+  void play(unsigned int start=0, unsigned int end=0);
+  void loop(unsigned int start=0, unsigned int end=0);
+  void stop();
 
 private:
   std::set<Wave> samples;
@@ -52,6 +49,8 @@ private:
   jack_ringbuffer_t *outQueue; // samples out, can be freed
 
   static int process_wrap(jack_nframes_t, void *);
+  int process(jack_nframes_t nframes);
+
   void timerEvent(QTimerEvent *event);
   class Command;
   void sendCommand(const Command &e);
