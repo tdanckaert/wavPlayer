@@ -68,7 +68,7 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
   state = STOPPED;
   haveSample = false;
 
-  startTimer(500);
+  startTimer(20);
 
   jack_activate(client);
 
@@ -214,6 +214,10 @@ void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
     qDebug() << __func__ << ": erasing sample";
     samples.erase(i);
  }
+
+  if(haveSample)
+    emit positionChanged(playbackIndex/curSample->channels);
+
 }
 
 const Wave* JackPlayer::loadWave(const QString &fileName) {
@@ -254,8 +258,4 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
       outputBuffer[i] /= curSample->channels;
     }
   }
-
-  if(haveSample)
-    emit positionChanged(playbackIndex/curSample->channels);
-
 }

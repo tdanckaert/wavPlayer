@@ -97,7 +97,6 @@ inline void WaveView::checkZoomLevel(void) {
 
 void WaveView::updateIndicator(unsigned int playPos) {
   indicator->setPos(playPos, 0.0);
-  update();
 }
 
 void WaveView::updateGraphics(void) {
