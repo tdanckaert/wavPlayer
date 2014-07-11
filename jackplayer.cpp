@@ -163,6 +163,8 @@ void JackPlayer::readCommands(void) {
     // Check that the command we received is valid for the current
     // sample (in principle, we could receive commands for another
     // sample due to synchronization issues)
+    e.start*=curSample->channels;
+    e.end*=curSample->channels;
     if(e.start > curSample->samples.size() 
        || e.end > curSample->samples.size()) {
       reset();

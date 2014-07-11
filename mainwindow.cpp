@@ -115,3 +115,9 @@ void MainWindow::on_actionPause_triggered()
 {
   player.pause();
 }
+
+void MainWindow::on_actionPlayHalf_triggered()
+{
+  player.play(ui->zoomView->scene()->width()/2,
+              ui->zoomView->scene()->width());
+}

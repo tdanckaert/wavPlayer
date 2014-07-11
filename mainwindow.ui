@@ -123,6 +123,7 @@
    <addaction name="actionPause"/>
    <addaction name="actionStop"/>
    <addaction name="actionLoop"/>
+   <addaction name="actionPlayHalf"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpen">
@@ -159,6 +160,11 @@
   <action name="actionLoop">
    <property name="text">
     <string>Loop</string>
+   </property>
+  </action>
+  <action name="actionPlayHalf">
+   <property name="text">
+    <string>PlayHalf</string>
    </property>
   </action>
  </widget>
