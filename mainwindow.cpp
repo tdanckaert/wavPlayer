@@ -66,6 +66,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), &player, SLOT(pause()));
+  connect(&player, SIGNAL(positionChanged(unsigned int)), ui->zoomView, SLOT(updateIndicator(unsigned int)) );
 }
 
 MainWindow::~MainWindow()

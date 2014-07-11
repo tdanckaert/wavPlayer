@@ -58,6 +58,9 @@ private:
   void readCommands(void);
   void writeBuffer(jack_nframes_t nframes);
   void reset(void);
+
+signals:
+  void positionChanged(unsigned int playPos);
 };
 
 #endif

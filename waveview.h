@@ -12,10 +12,10 @@ class WaveView : public QGraphicsView
 public:
   explicit WaveView(QWidget *parent = 0);
   void drawWave(const Wave *wave);
-
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
 
 private:
+  QGraphicsLineItem *indicator;
   float zoomLevel;
   float maxAmplitude;
   std::vector<QGraphicsPixmapItem *> pixmaps;
@@ -31,11 +31,11 @@ protected:
   void resizeEvent(QResizeEvent *event);
   void wheelEvent(QWheelEvent *event);
   void paintEvent(QPaintEvent *event);
-    
+
 signals:
-    
+
 public slots:
-    
+  void updateIndicator(unsigned int playPos);
 };
 
 #endif // WAVEVIEW_H

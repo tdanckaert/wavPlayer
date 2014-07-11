@@ -252,4 +252,8 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
       outputBuffer[i] /= curSample->channels;
     }
   }
+
+  if(haveSample)
+    emit positionChanged(playbackIndex/curSample->channels);
+
 }

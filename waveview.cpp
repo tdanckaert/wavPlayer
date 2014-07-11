@@ -22,11 +22,19 @@ WaveView::WaveView(QWidget *parent) :
 {
   setScene(new QGraphicsScene(this));
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+  indicator = scene()->addLine(0,0,0,0);
 }
 
 void WaveView::drawWave(const Wave *wave) {
   pixmaps.clear();
   scene()->clear();
+  QPen pen;
+  //  pen.setWidth();
+  pen.setCosmetic(true);
+  pen.setColor(Qt::green);
+  indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
+  indicator->setZValue(1.0); // draw on top
   this->wave = wave;
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
@@ -85,6 +93,11 @@ inline void WaveView::checkZoomLevel(void) {
   }
   qDebug() << "transform horizontal stretch: " << transform().m11() 
            << "zoomLevel:" << zoomLevel << "- ratio:" << stretchRatio;
+}
+
+void WaveView::updateIndicator(unsigned int playPos) {
+  indicator->setPos(playPos, 0.0);
+  update();
 }
 
 void WaveView::updateGraphics(void) {
