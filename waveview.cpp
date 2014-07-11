@@ -48,7 +48,8 @@ void WaveView::drawWave(const Wave *wave) {
   maxAmplitude = fabs(*std::max_element(wave->samples.begin(), wave->samples.end(), 
                                         [] (decltype(wave->samples[0]) a, decltype(wave->samples[0]) b) { return fabs(a) < fabs(b); }));
 
-  scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->samples.size()/wave->channels), 0.5*pixmapHeight());
+  pen.setColor(Qt::black);
+  scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->samples.size()/wave->channels), 0.5*pixmapHeight(), pen);
 
   horizontalScrollBar()->setSliderPosition(0);
   zoomLevel = 1/transform().m11();
@@ -85,15 +86,17 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   if(wave) {
     auto scenePos = mapToScene(event->x(),event->y());
     auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
-                               [scenePos] (decltype(cuts[0]) a) { 
-                                 //                                 qDebug() << a->x();
-                                 return ( a->line().x1() > scenePos.x() );});
+                               [scenePos] (decltype(cuts[0]) a) { return ( a->line().x1() > scenePos.x() );});
+    if(iAfter == cuts.begin() || iAfter == cuts.end()) {
+      // clicked outside the waves range
+      return;
+    }
     if (event->button() == Qt::RightButton) {
       QPen pen;
       pen.setColor(Qt::red);
       scene()->addLine(scenePos.x(),0,scenePos.x(),pixmapHeight(), pen);
       cuts.insert(iAfter, addCut(scenePos.x()));
-    } else {
+    } else if (event->button() == Qt::LeftButton) {
       emit playCut((*(iAfter-1))->line().x1(), (*iAfter)->line().x1());
     }
   }
@@ -223,6 +226,7 @@ inline float WaveView::pixmapHeight(void) {
 QGraphicsLineItem * WaveView::addCut(unsigned int pos) {
   QPen pen;
   pen.setColor(Qt::red);
+  pen.setCosmetic(true);
   auto line = scene()->addLine(pos,0,pos,pixmapHeight(), pen);
   line->setFlag(QGraphicsItem::ItemIsMovable);
   return line;
