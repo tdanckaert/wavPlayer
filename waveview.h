@@ -19,14 +19,14 @@ private:
   float zoomLevel;
   float maxAmplitude;
   std::vector<QGraphicsPixmapItem *> pixmaps;
-  std::vector<QGraphicsLineItem *> cuts;
+  std::vector<QGraphicsItem *> cuts;
   const Wave *wave;
 
   float pixmapHeight(void);
   void checkZoomLevel(void);
   void updateGraphics(void);
   unsigned int visibleRange(void);
-  QGraphicsLineItem *addCut(unsigned int pos);
+  QGraphicsItem *addCut(unsigned int pos);
 
 protected:
   void scrollContentsBy(int dx, int dy);

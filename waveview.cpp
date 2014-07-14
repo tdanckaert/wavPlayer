@@ -22,6 +22,7 @@ WaveView::WaveView(QWidget *parent) :
 {
   setScene(new QGraphicsScene(this));
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
   indicator = scene()->addLine(0,0,0,0);
 }
@@ -34,7 +35,6 @@ void WaveView::drawWave(const Wave *wave) {
   pen.setCosmetic(true);
   auto color = QColor(Qt::green);
   pen.setColor(color);
-  //  pen.setWidth(6);
   indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
   indicator->setZValue(1.0); // draw on top
   this->wave = wave;
@@ -52,6 +52,7 @@ void WaveView::drawWave(const Wave *wave) {
   scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->samples.size()/wave->channels), 0.5*pixmapHeight(), pen);
 
   horizontalScrollBar()->setSliderPosition(0);
+
   zoomLevel = 1/transform().m11();
 }
 
@@ -82,22 +83,20 @@ void WaveView::wheelEvent(QWheelEvent *event) {
 }
 
 void WaveView::mousePressEvent(QMouseEvent *event) {
+  QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if(wave) {
     auto scenePos = mapToScene(event->x(),event->y());
     auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
-                               [scenePos] (decltype(cuts[0]) a) { return ( a->line().x1() > scenePos.x() );});
+                               [scenePos] (decltype(cuts[0]) a) { return ( a->pos().x() > scenePos.x() );});
     if(iAfter == cuts.begin() || iAfter == cuts.end()) {
       // clicked outside the waves range
       return;
     }
     if (event->button() == Qt::RightButton) {
-      QPen pen;
-      pen.setColor(Qt::red);
-      scene()->addLine(scenePos.x(),0,scenePos.x(),pixmapHeight(), pen);
       cuts.insert(iAfter, addCut(scenePos.x()));
     } else if (event->button() == Qt::LeftButton) {
-      emit playCut((*(iAfter-1))->line().x1(), (*iAfter)->line().x1());
+      emit playCut((*(iAfter-1))->pos().x(), (*iAfter)->pos().x());
     }
   }
 }
@@ -223,11 +222,20 @@ inline float WaveView::pixmapHeight(void) {
   return 0.6 * QApplication::desktop()->screenGeometry().height();
 }
 
-QGraphicsLineItem * WaveView::addCut(unsigned int pos) {
+QGraphicsItem * WaveView::addCut(unsigned int pos) {
   QPen pen;
   pen.setColor(Qt::red);
   pen.setCosmetic(true);
-  auto line = scene()->addLine(pos,0,pos,pixmapHeight(), pen);
-  line->setFlag(QGraphicsItem::ItemIsMovable);
-  return line;
+
+  QPolygonF poly;
+  poly << QPointF(0,0) << QPointF(0,20) << QPointF(20,0) << QPointF(0,0);
+  auto p=scene()->addPolygon(poly, pen);
+  p->setFlag(QGraphicsItem::ItemIsMovable);
+  p->setFlag(QGraphicsItem::ItemIgnoresTransformations);
+  p->setPos(pos,0);
+
+  auto line = new QGraphicsLineItem(p);
+  line->setPen(pen);
+  line->setLine(QLineF(0,0,0,pixmapHeight()));
+  return p;
 }
