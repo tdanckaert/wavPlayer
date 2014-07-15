@@ -17,7 +17,6 @@ class Cutter :public QObject {
   Cutter(QObject *parent=0, JackPlayer *p=0, QGraphicsView *v=0) : QObject(parent), player(p), view(v) {};
 
   void setView(QGraphicsView *v);
-  void sortMarkers(void);
   void clear(void) { cuts.clear(); };
 
 private:

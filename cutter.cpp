@@ -3,7 +3,6 @@
 
 #include <QGraphicsView>
 #include <QGraphicsItem>
-#include <QMouseEvent>
 #include <QDebug>
 
 class Cutter::Marker : public  QGraphicsPolygonItem {
@@ -19,25 +18,20 @@ private:
       // value is the new position.
       QPointF newPos = value.toPointF();
       qDebug() << __func__ << "newPos: "  << newPos;
-      if (newPos.y() != 0) {
-        newPos.setY(0);
-        setPos(newPos);
-        parent.sortMarkers();
-      }
+      newPos.setY(0);
+      setPos(newPos);
+      std::sort(parent.cuts.begin(), parent.cuts.end(),
+                [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); } );
       return newPos;
     } 
-    return QGraphicsItem::itemChange(change, value);
+    return QGraphicsPolygonItem::itemChange(change, value);
   };
 };
 
 void Cutter::setView(QGraphicsView *v) {
   view = v;
-  connect(view, SIGNAL(waveClicked(Qt::MouseButton,unsigned int)), this, SLOT(handleMousePress(Qt::MouseButton, unsigned int)) );
-}
-
-void Cutter::sortMarkers(void) {
-  std::sort(cuts.begin(), cuts.end(),
-            [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); } );
+  connect(view, SIGNAL(waveClicked(Qt::MouseButton,unsigned int)),
+          this, SLOT(handleMousePress(Qt::MouseButton, unsigned int)) );
 }
 
 void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
@@ -58,18 +52,19 @@ void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
 QGraphicsItem *Cutter::addCut(unsigned int pos) {
   QPen pen;
   pen.setColor(Qt::red);
-  pen.setBrush(Qt::red);
   pen.setCosmetic(true);
 
   QPolygonF poly;
-  poly << QPointF(0,0) << QPointF(0,20) << QPointF(15,0) << QPointF(0,0);
+  poly << QPointF(0,0) << QPointF(0,15) << QPointF(10,0) << QPointF(0,0);
+  qDebug() << __func__ << "polygon closed?" << poly.isClosed();
   auto p=new Marker(*this);
-  view->scene()->addItem(p);
   p->setPen(pen);
+  p->setBrush(Qt::red);
   p->setPolygon(poly);
   p->setFlag(QGraphicsItem::ItemIsMovable);
   p->setFlag(QGraphicsItem::ItemIgnoresTransformations);
   p->setFlag(QGraphicsItem::ItemSendsScenePositionChanges);
+  view->scene()->addItem(p);
 
   p->setPos(pos,0);
 
