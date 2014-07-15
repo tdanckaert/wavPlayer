@@ -23,8 +23,6 @@ private:
   JackPlayer player;
   Cutter cutter;
 
-  void drawWave(const Wave*);
-
 private slots:
   void on_actionQuit_triggered();
   void on_actionOpen_triggered();
@@ -33,8 +31,6 @@ private slots:
   void on_actionLoop_triggered();
   void on_actionPause_triggered();
   void on_actionStop_triggered();
-
-  void on_splitter_splitterMoved(int pos, int index);
 };
 
 #endif // MAINWINDOW_H

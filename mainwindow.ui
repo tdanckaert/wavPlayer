@@ -70,7 +70,7 @@
         </size>
        </property>
       </widget>
-      <widget class="QGraphicsView" name="waveOverview">
+      <widget class="WaveView" name="waveOverview">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
          <horstretch>0</horstretch>

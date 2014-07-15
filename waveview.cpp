@@ -58,10 +58,15 @@ void WaveView::scrollContentsBy(int dx, int dy) {
 }
 
 unsigned int WaveView::visibleRange(void) {
-  auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
-  // the width of the visible scene is equal to (viewport width - 4) (border of 2px on each side?)
-  auto xRight = static_cast<int>(mapToScene(QPoint(std::max(viewport()->width()-2,0),0)).x());
-  return xRight - xLeft;
+  if(!isInteractive() ) {
+    // when not interactive, always keep the entire wave visible:
+    return scene()->sceneRect().width();
+  } else {
+    auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
+    // the width of the visible scene is equal to (viewport width - 4) (border of 2px on each side?)
+    auto xRight = static_cast<int>(mapToScene(QPoint(std::max(viewport()->width()-2,0),0)).x());
+    return xRight - xLeft;
+  }
 }
 
 void WaveView::resizeEvent(QResizeEvent* event ) {
@@ -71,11 +76,13 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 }
 
 void WaveView::wheelEvent(QWheelEvent *event) {
-  auto scaleFact = event->delta() > 0
-    ? 1.10 : 1/1.10;
-  // don't zoom in further if zoomLevel is already smaller than 1
-  if (scaleFact < 1.0 || zoomLevel > 1.0) 
-    setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+  if(isInteractive() ) {
+    auto scaleFact = event->delta() > 0
+      ? 1.10 : 1/1.10;
+    // don't zoom in further if zoomLevel is already smaller than 1
+    if (scaleFact < 1.0 || zoomLevel > 1.0) 
+      setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+  }
 }
 
 void WaveView::mousePressEvent(QMouseEvent *event) {

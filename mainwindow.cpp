@@ -17,43 +17,6 @@ using std::vector;
 using std::cerr;
 using std::endl;
 
-void MainWindow::drawWave(const Wave *wave) {
-  auto scene = ui->waveOverview->scene();
-  scene->clear();
-
-  ui->waveOverview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-  auto height = 0.6 *  QApplication::desktop()->screenGeometry().height();
-  vector<QPointF> points;
-  // todo: handle stereo
-  points.reserve(wave->samples.size());
-  float ampl = 0.5*height;
-  for(unsigned int i=0; i<wave->samples.size(); ++i) {
-    points.push_back(QPointF(i/150.0, ampl*wave->samples[i] +ampl ) );
-  }
-
-  auto map = QPixmap(wave->samples.size()/150.0, height);
-  map.fill(Qt::transparent);
-
-  QPainter painter(&map);
-  painter.setRenderHints(QPainter::Antialiasing | QPainter::HighQualityAntialiasing);
-
-  painter.drawPolyline(&points[0], points.size());
-  auto item = scene->addPixmap(map);
-
-  ui->waveOverview->fitInView(item);
-
-  // strange hack to set scene rectangle to actual bounding box of wave (taking into account transparency)
-  ui->waveOverview->setSceneRect(
-              QRectF(ui->waveOverview->mapToScene(QPoint(0,0)),
-                     ui->waveOverview->mapToScene(QPoint(ui->waveOverview->width(),ui->waveOverview->height()))));
-
-  qDebug() << "Scene rect: " << ui->waveOverview->sceneRect() << endl
-           << "pixmap dimension: " << map.width() << " x " << map.height();
-
-}
-
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
@@ -64,10 +27,12 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->waveOverview->setScene(new QGraphicsScene(this));
   ui->waveOverview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  ui->waveOverview->setInteractive(false);
 
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), &player, SLOT(pause()));
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->zoomView, SLOT(updateIndicator(unsigned int)) );
+  connect(&player, SIGNAL(positionChanged(unsigned int)), ui->waveOverview, SLOT(updateIndicator(unsigned int)) );
 
   cutter.setView(ui->zoomView);
 }
@@ -86,18 +51,10 @@ void MainWindow::on_actionOpen_triggered()
 {
   auto pWave = player.loadWave(QFileDialog::getOpenFileName());
   if (pWave != nullptr) {
-    drawWave(pWave);
+    ui->waveOverview->drawWave(pWave);
     ui->zoomView->drawWave(pWave);
     cutter.clear();
   }
-}
-
-void MainWindow::on_splitter_splitterMoved(int pos __attribute__ ((unused)), int index __attribute__ ((unused)) )
-{
-  auto item = ui->waveOverview->scene()->items().first();
-
-  if (item != nullptr)
-    ui->waveOverview->fitInView(item);
 }
 
 void MainWindow::on_actionStop_triggered()
