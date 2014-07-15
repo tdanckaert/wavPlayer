@@ -29,7 +29,6 @@ WaveView::WaveView(QWidget *parent) :
 
 void WaveView::drawWave(const Wave *wave) {
   pixmaps.clear();
-  cuts.clear();
   scene()->clear();
   QPen pen;
   pen.setCosmetic(true);
@@ -41,9 +40,6 @@ void WaveView::drawWave(const Wave *wave) {
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
   fitInView(0,0,wave->samples.size()/wave->channels,pixmapHeight());
-
-  cuts.push_back(addCut(0));
-  cuts.push_back(addCut(scene()->width()));
 
   maxAmplitude = fabs(*std::max_element(wave->samples.begin(), wave->samples.end(), 
                                         [] (decltype(wave->samples[0]) a, decltype(wave->samples[0]) b) { return fabs(a) < fabs(b); }));
@@ -87,16 +83,9 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if(wave) {
     auto scenePos = mapToScene(event->x(),event->y());
-    auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
-                               [scenePos] (decltype(cuts[0]) a) { return ( a->pos().x() > scenePos.x() );});
-    if(iAfter == cuts.begin() || iAfter == cuts.end()) {
-      // clicked outside the waves range
-      return;
-    }
-    if (event->button() == Qt::RightButton) {
-      cuts.insert(iAfter, addCut(scenePos.x()));
-    } else if (event->button() == Qt::LeftButton) {
-      emit playCut((*(iAfter-1))->pos().x(), (*iAfter)->pos().x());
+    if (scenePos.x() > 0) {
+      qDebug() << "emit waveClicked(" << event->button() << scenePos.x();
+      emit waveClicked(event->button(), scenePos.x());
     }
   }
 }
@@ -218,24 +207,6 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
   item->setPixmap(map);
 }
 
-inline float WaveView::pixmapHeight(void) {
+float WaveView::pixmapHeight(void) const {
   return 0.6 * QApplication::desktop()->screenGeometry().height();
-}
-
-QGraphicsItem * WaveView::addCut(unsigned int pos) {
-  QPen pen;
-  pen.setColor(Qt::red);
-  pen.setCosmetic(true);
-
-  QPolygonF poly;
-  poly << QPointF(0,0) << QPointF(0,20) << QPointF(20,0) << QPointF(0,0);
-  auto p=scene()->addPolygon(poly, pen);
-  p->setFlag(QGraphicsItem::ItemIsMovable);
-  p->setFlag(QGraphicsItem::ItemIgnoresTransformations);
-  p->setPos(pos,0);
-
-  auto line = new QGraphicsLineItem(p);
-  line->setPen(pen);
-  line->setLine(QLineF(0,0,0,pixmapHeight()));
-  return p;
 }

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 
 #include "jackplayer.h"
+#include "cutter.h"
 
 namespace Ui {
 class MainWindow;
@@ -20,6 +21,7 @@ public:
 private:
   Ui::MainWindow *ui;
   JackPlayer player;
+  Cutter cutter;
 
   void drawWave(const Wave*);
 

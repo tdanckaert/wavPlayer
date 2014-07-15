@@ -23,11 +23,13 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     waveview.cpp \
     wave.cpp \
+    cutter.cpp \
     jackplayer.cpp
 
 HEADERS  += mainwindow.h \
     waveview.h \
     wave.h \
+    cutter.h \
     jackplayer.h
 
 FORMS    += mainwindow.ui

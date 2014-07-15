@@ -19,14 +19,12 @@ private:
   float zoomLevel;
   float maxAmplitude;
   std::vector<QGraphicsPixmapItem *> pixmaps;
-  std::vector<QGraphicsItem *> cuts;
   const Wave *wave;
 
-  float pixmapHeight(void);
+  float pixmapHeight(void) const;
   void checkZoomLevel(void);
   void updateGraphics(void);
   unsigned int visibleRange(void);
-  QGraphicsItem *addCut(unsigned int pos);
 
 protected:
   void scrollContentsBy(int dx, int dy);
@@ -36,7 +34,7 @@ protected:
   void paintEvent(QPaintEvent *event);
 
 signals:
-  void playCut(unsigned int, unsigned int);
+  void waveClicked(Qt::MouseButton b, unsigned int pos);
 
 public slots:
   void updateIndicator(unsigned int playPos);

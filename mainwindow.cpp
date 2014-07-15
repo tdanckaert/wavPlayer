@@ -56,7 +56,8 @@ void MainWindow::drawWave(const Wave *wave) {
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    cutter(this, &player, ui->zoomView)
 {
   ui->setupUi(this);
 
@@ -67,7 +68,8 @@ MainWindow::MainWindow(QWidget *parent) :
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
   connect(shortcutPlay, SIGNAL(activated()), &player, SLOT(pause()));
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->zoomView, SLOT(updateIndicator(unsigned int)) );
-  connect(ui->zoomView, SIGNAL(playCut(unsigned int,unsigned int)), &player, SLOT(play(unsigned int, unsigned int)) );
+
+  cutter.setView(ui->zoomView);
 }
 
 MainWindow::~MainWindow()
@@ -86,6 +88,7 @@ void MainWindow::on_actionOpen_triggered()
   if (pWave != nullptr) {
     drawWave(pWave);
     ui->zoomView->drawWave(pWave);
+    cutter.clear();
   }
 }
 
