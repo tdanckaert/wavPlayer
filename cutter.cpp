@@ -28,6 +28,17 @@ private:
   };
 };
 
+class Cutter::VerticalLine : public QGraphicsLineItem {
+
+public:
+  VerticalLine(QGraphicsItem *parentItem) : QGraphicsLineItem(parentItem) {};
+  
+  void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    setLine(0, 0, 0, QPointF(0,scene()->views().first()->height()).y());
+    QGraphicsLineItem::paint(painter, option, widget);
+  };
+};
+
 void Cutter::setView(QGraphicsView *v) {
   view = v;
   connect(view, SIGNAL(waveClicked(Qt::MouseButton,unsigned int)),
@@ -65,11 +76,10 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
   p->setFlag(QGraphicsItem::ItemIgnoresTransformations);
   p->setFlag(QGraphicsItem::ItemSendsScenePositionChanges);
   view->scene()->addItem(p);
-
   p->setPos(pos,0);
 
-  auto line = new QGraphicsLineItem(p);
+  auto line = new VerticalLine(p);
   line->setPen(pen);
-  line->setLine(QLineF(0, 0, 0, view->mapFromScene(0, view->scene()->sceneRect().height() ).y() ) );
+
   return p;
 }

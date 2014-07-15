@@ -21,6 +21,7 @@ class Cutter :public QObject {
 
 private:
   class Marker;
+  class VerticalLine;
   JackPlayer *player;
   QGraphicsView *view;
   std::vector<QGraphicsItem *> cuts;
