@@ -2,6 +2,7 @@
 #define CUTTER_H
 
 #include <QObject>
+#include <QPointF>
 
 #include <vector>
 
@@ -35,7 +36,7 @@ private:
   void drawSlice(void);
 
 public slots:
-  void handleMousePress(Qt::MouseButton button, unsigned int pos);
+  void handleMousePress(Qt::MouseButton button, QPointF scenePos);
   void nextSlice(void);
   void prevSlice(void);
 

@@ -54,15 +54,15 @@ public:
 
 void Cutter::setView(QGraphicsView *v) {
   view = v;
-  connect(view, SIGNAL(waveClicked(Qt::MouseButton,unsigned int)),
-          this, SLOT(handleMousePress(Qt::MouseButton, unsigned int)) );
+  connect(view, SIGNAL(waveClicked(Qt::MouseButton, QPointF)),
+          this, SLOT(handleMousePress(Qt::MouseButton, QPointF)) );
 }
 
-void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
+void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
-                             [pos] (decltype(cuts[0]) a) { return ( a->pos().x() > pos );});
+                             [scenePos] (decltype(cuts[0]) a) { return ( a->pos().x() > scenePos.x() );});
   if (button == Qt::RightButton) {
-    auto newCut = addCut(pos);
+    auto newCut = addCut(scenePos.x() );
     connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
             this, SLOT(markerMoved(unsigned int)) );
     if (iAfter != cuts.end()) {
@@ -72,9 +72,14 @@ void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
     }
   } else if (button == Qt::LeftButton && 
              iAfter != cuts.begin() && iAfter != cuts.end() ) {
-    sliceStart = *(iAfter-1);
-    sliceEnd = *(iAfter);
-    drawSlice();
+    auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
+    bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
+    if( !clickedOnMarker) {
+      sliceStart = *(iAfter-1);
+      sliceEnd = *(iAfter);
+      drawSlice();
+      playSlice();
+    }
   }
 }
 
@@ -112,6 +117,7 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
   p->setFlag(QGraphicsItem::ItemSendsScenePositionChanges);
   view->scene()->addItem(p);
   p->setPos(pos,0);
+  p->setZValue(1.0);
 
   auto line = new VerticalLine(p);
   line->setPen(pen);
@@ -131,19 +137,19 @@ void Cutter::playSlice(void) {
   }
 }
 
-// TODO: handle cases where sliceStart > sliceEnd due to moving cuts
 void Cutter::nextSlice(void) {
   if(sliceStart) {
     auto current = std::find(cuts.begin(), cuts.end(), sliceStart);
     qDebug() << "cuts: " << cuts.size();
     ++current;
-    if(current == (cuts.end()-1) ) {
+    if(current == cuts.end() || current == (cuts.end()-1) ) {
       qDebug() << "at last cut, wraparound" ;
       current = cuts.begin();
     }
     sliceStart = *current;
     sliceEnd = *(++current);
     drawSlice();
+    playSlice();
   }
 }
 
@@ -157,5 +163,6 @@ void Cutter::prevSlice(void) {
     sliceEnd = *current;
     sliceStart  = *(--current);
     drawSlice();
+    playSlice();
   }
 }

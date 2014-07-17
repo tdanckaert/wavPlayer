@@ -35,7 +35,7 @@ void WaveView::drawWave(const Wave *wave) {
   auto color = QColor(Qt::green);
   pen.setColor(color);
   indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
-  indicator->setZValue(1.0); // draw on top
+  indicator->setZValue(0.5); // draw on top of pixmaps
   this->wave = wave;
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
@@ -98,7 +98,7 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
     auto scenePos = mapToScene(event->x(),event->y());
     if (scenePos.x() > 0) {
       qDebug() << "emit waveClicked(" << event->button() << scenePos.x();
-      emit waveClicked(event->button(), scenePos.x());
+      emit waveClicked(event->button(), scenePos);
     }
   }
 }
