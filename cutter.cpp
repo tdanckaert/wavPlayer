@@ -1,16 +1,18 @@
 #include "cutter.h"
 #include "jackplayer.h"
 
+#include <QObject>
 #include <QGraphicsView>
 #include <QGraphicsItem>
 #include <QDebug>
 
-class Cutter::Marker : public  QGraphicsPolygonItem {
+class Cutter::Marker : public QObject, public QGraphicsPolygonItem {
+  Q_OBJECT
+
 public:
-  Marker(Cutter &parent) : QGraphicsPolygonItem(), parent(parent) {};
+  Marker(QObject *parent = 0) : QObject(parent), QGraphicsPolygonItem() {};
 
 private:
-  Cutter& parent;
 
   QVariant itemChange(GraphicsItemChange change, const QVariant &value) {
     qDebug() << __func__ ;
@@ -18,14 +20,21 @@ private:
       // value is the new position.
       QPointF newPos = value.toPointF();
       qDebug() << __func__ << "newPos: "  << newPos;
+      if(newPos.x() < 0) {
+        newPos.setX(0);
+      } else if (newPos.x() > scene()->width()) {
+        newPos.setX(scene()->width());
+      }
       newPos.setY(0);
       setPos(newPos);
-      std::sort(parent.cuts.begin(), parent.cuts.end(),
-                [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); } );
+      emit positionChanged(static_cast<unsigned int>(newPos.x()));
       return newPos;
     } 
     return QGraphicsPolygonItem::itemChange(change, value);
   };
+
+signals:
+  void positionChanged(unsigned int pos);
 };
 
 class Cutter::VerticalLine : public QGraphicsLineItem {
@@ -39,6 +48,8 @@ public:
   };
 };
 
+#include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
+
 void Cutter::setView(QGraphicsView *v) {
   view = v;
   connect(view, SIGNAL(waveClicked(Qt::MouseButton,unsigned int)),
@@ -49,14 +60,37 @@ void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
                              [pos] (decltype(cuts[0]) a) { return ( a->pos().x() > pos );});
   if (button == Qt::RightButton) {
+    auto newCut = addCut(pos);
+    connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
+            this, SLOT(markerMoved(unsigned int)) );
     if (iAfter != cuts.end()) {
-      cuts.insert(iAfter, addCut(pos));
+      cuts.insert(iAfter, newCut);
     } else {
-      cuts.push_back(addCut(pos));
+      cuts.push_back(newCut);
     }
   } else if (button == Qt::LeftButton && 
              iAfter != cuts.begin() && iAfter != cuts.end() ) {
-    player->play((*(iAfter-1))->pos().x(), (*iAfter)->pos().x());
+    sliceStart = *(iAfter-1);
+    sliceEnd = *(iAfter);
+    drawSlice();
+    player->play(sliceStart->pos().x(), sliceEnd->pos().x() );
+  }
+}
+
+void Cutter::drawSlice(void) {
+  if(sliceStart && sliceEnd) {
+    auto xStart = sliceStart->pos().x();
+    auto xEnd = sliceEnd->pos().x();
+    auto rect = QRectF(xStart, -5, xEnd-xStart,
+                       10+ view->scene()->height() );
+    if(slice) {
+      slice->setRect(rect);
+    } else {
+      slice = view->scene()->addRect(rect);
+      slice->setPen(QPen(Qt::lightGray));
+      slice->setBrush(Qt::lightGray);
+      slice->setZValue(-1);
+    }
   }
 }
 
@@ -68,7 +102,7 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
   QPolygonF poly;
   poly << QPointF(0,0) << QPointF(0,15) << QPointF(10,0) << QPointF(0,0);
   qDebug() << __func__ << "polygon closed?" << poly.isClosed();
-  auto p=new Marker(*this);
+  auto p=new Marker(0);
   p->setPen(pen);
   p->setBrush(Qt::red);
   p->setPolygon(poly);
@@ -82,4 +116,10 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
   line->setPen(pen);
 
   return p;
+}
+
+void Cutter::markerMoved(unsigned int pos) {
+  std::sort(cuts.begin(), cuts.end(),
+            [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); });
+  drawSlice();
 }
