@@ -77,11 +77,17 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 
 void WaveView::wheelEvent(QWheelEvent *event) {
   if(isInteractive() ) {
-    auto scaleFact = event->delta() > 0
-      ? 1.10 : 1/1.10;
-    // don't zoom in further if zoomLevel is already smaller than 1
-    if (scaleFact < 1.0 || zoomLevel > 1.0) 
-      setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+    if(event->orientation() == Qt::Horizontal) {
+      // scroll view horizontally
+      QGraphicsView::wheelEvent(event);
+    } else {
+      // vertical: zoom in/out
+      auto scaleFact = event->delta() > 0
+        ? 1.10 : 1/1.10;
+      // don't zoom in further if zoomLevel is already smaller than 1
+      if (scaleFact < 1.0 || zoomLevel > 1.0) 
+        setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+    }
   }
 }
 
