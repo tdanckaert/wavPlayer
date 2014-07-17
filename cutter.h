@@ -18,6 +18,7 @@ class Cutter :public QObject {
   Cutter(QObject *parent=0, JackPlayer *p=0, QGraphicsView *v=0) : QObject(parent), player(p), view(v),
                                                                    slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr) {};
 
+  void playSlice(void);
   void setView(QGraphicsView *v);
   void clear(void) { cuts.clear(); };
 
@@ -35,6 +36,8 @@ private:
 
 public slots:
   void handleMousePress(Qt::MouseButton button, unsigned int pos);
+  void nextSlice(void);
+  void prevSlice(void);
 
 private slots:
   void markerMoved(unsigned int newPos);

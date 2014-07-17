@@ -34,6 +34,13 @@ MainWindow::MainWindow(QWidget *parent) :
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->zoomView, SLOT(updateIndicator(unsigned int)) );
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->waveOverview, SLOT(updateIndicator(unsigned int)) );
 
+  auto shortcutPrevSlice = new QShortcut(QKeySequence(Qt::Key_Left), this);
+  auto shortcutNextSlice = new QShortcut(QKeySequence(Qt::Key_Right), this);
+
+  connect(shortcutPrevSlice, SIGNAL(activated()), &cutter, SLOT(prevSlice()));
+  connect(shortcutNextSlice, SIGNAL(activated()), &cutter, SLOT(nextSlice()));
+  
+
   cutter.setView(ui->zoomView);
 }
 

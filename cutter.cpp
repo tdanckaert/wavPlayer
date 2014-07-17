@@ -6,6 +6,8 @@
 #include <QGraphicsItem>
 #include <QDebug>
 
+#include <cassert>
+
 class Cutter::Marker : public QObject, public QGraphicsPolygonItem {
   Q_OBJECT
 
@@ -73,7 +75,6 @@ void Cutter::handleMousePress(Qt::MouseButton button, unsigned int pos) {
     sliceStart = *(iAfter-1);
     sliceEnd = *(iAfter);
     drawSlice();
-    player->play(sliceStart->pos().x(), sliceEnd->pos().x() );
   }
 }
 
@@ -122,4 +123,39 @@ void Cutter::markerMoved(unsigned int pos) {
   std::sort(cuts.begin(), cuts.end(),
             [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); });
   drawSlice();
+}
+
+void Cutter::playSlice(void) {
+  if(sliceStart && sliceEnd) {
+    player->play(sliceStart->pos().x(), sliceEnd->pos().x() );
+  }
+}
+
+// TODO: handle cases where sliceStart > sliceEnd due to moving cuts
+void Cutter::nextSlice(void) {
+  if(sliceStart) {
+    auto current = std::find(cuts.begin(), cuts.end(), sliceStart);
+    qDebug() << "cuts: " << cuts.size();
+    ++current;
+    if(current == (cuts.end()-1) ) {
+      qDebug() << "at last cut, wraparound" ;
+      current = cuts.begin();
+    }
+    sliceStart = *current;
+    sliceEnd = *(++current);
+    drawSlice();
+  }
+}
+
+void Cutter::prevSlice(void) {
+  if(sliceStart) {
+    auto current = std::find(cuts.begin(), cuts.end(), sliceStart);
+    assert(current != cuts.end());
+    if (current == cuts.begin()) {
+      current = --cuts.end();
+    }
+    sliceEnd = *current;
+    sliceStart  = *(--current);
+    drawSlice();
+  }
 }
