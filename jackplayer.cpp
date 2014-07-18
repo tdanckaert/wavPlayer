@@ -133,6 +133,20 @@ void JackPlayer::stop(void) {
   sendCommand(Command::Stop);
 }
 
+void JackPlayer::setLoopStart(unsigned int start) {
+  if(haveSample) {
+    loopStart = start*(curSample->channels);
+    qDebug() << __func__ << loopStart;
+  }
+}
+
+void JackPlayer::setLoopEnd(unsigned int end) {
+  if(haveSample) {
+    loopEnd = end*(curSample->channels);
+    qDebug() << __func__ << loopEnd;
+  }
+}
+
 void JackPlayer::sendCommand(const Command &e) {
   if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(Command)) {
     jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(Command));
@@ -145,7 +159,6 @@ void JackPlayer::sendCommand(const Command &e) {
 inline void JackPlayer::reset(void) {
   assert(haveSample);
   playbackIndex = curSample->samples.size();
-  loopStart = curSample->samples.size();
   playEnd = curSample->samples.size();
 }
 
@@ -180,20 +193,25 @@ void JackPlayer::readCommands(void) {
       qDebug() << "Play: " << playbackIndex << playEnd;
       break;
     case Command::Loop:
-      reset();
-      state = PLAYING;
-      loopStart = e.start;
-      playbackIndex = e.start;
-      playEnd = e.end ? e.end : curSample->samples.size();
+      state = LOOPING;
+      if(e.start) {
+        loopStart = e.start;
+      }
+      playbackIndex = loopStart;
+      if (e.end) {
+        loopEnd = e.end;
+      }
       qDebug() << "Loop: " << playbackIndex << playEnd;
       break;
     case Command::Pause:
       switch(state) {
       qDebug() << "JackPlayer Pause/Unpause";
       case PLAYING:
+      case LOOPING:
         state = STOPPED;
         break;
       case STOPPED:
+        // TODO: keep track if we have to return to looping or to a single play
         state = PLAYING;
         break;
       }
@@ -242,6 +260,8 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
   for (jack_nframes_t i = 0; i < nframes; ++i) {
     // Check if playbackIndex is past the end.  When in a loop: return to start, if not: stop.
     if (state == PLAYING && playbackIndex >= playEnd ) {
+      state = STOPPED;
+    } else if (state == LOOPING && playbackIndex >= loopEnd) {
       if(loopStart < curSample->samples.size()) {
         playbackIndex = loopStart;
       } else {
@@ -250,7 +270,7 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
     }
 
     outputBuffer[i] = 0.;
-    if (state == PLAYING) {
+    if (state == PLAYING || state == LOOPING ) {
       // for buffers with multiple channels, we just average every channel
       for(unsigned int j=0; j<curSample->channels; ++j) {
         outputBuffer[i] += curSample->samples[playbackIndex++];

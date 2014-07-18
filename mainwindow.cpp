@@ -70,7 +70,7 @@ void MainWindow::on_actionStop_triggered()
 
 void MainWindow::on_actionLoop_triggered()
 {
-  player.loop();
+  cutter.loop();
 }
 
 void MainWindow::on_actionPlay_triggered()

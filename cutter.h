@@ -20,7 +20,8 @@ class Cutter :public QObject {
                                                                    slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr) {};
 
   void setView(QGraphicsView *v);
-  void clear(void) { cuts.clear(); };
+  void clear(void);
+  void loop(void);
 
 private:
   class Marker;
@@ -33,6 +34,7 @@ private:
   std::vector<Marker *> cuts;
   Marker *addCut(unsigned int pos);
   void drawSlice(void);
+  void updateLoop(void);
 
 public slots:
   void handleMousePress(Qt::MouseButton button, QPointF scenePos);

@@ -10,6 +10,7 @@
 
 enum PlayState {
   PLAYING,
+  LOOPING,
   STOPPED
 };
 
@@ -23,6 +24,8 @@ public:
   ~JackPlayer(void);
 
   const Wave* loadWave(const QString& filename);
+  void setLoopStart(unsigned int start);
+  void setLoopEnd(unsigned int end);
 
 public slots:
   void pause();
@@ -41,6 +44,7 @@ private:
 
   unsigned int playbackIndex; /* 0 to curSample->size() */
   unsigned int loopStart; /* 0 to curSample->size() */
+  unsigned int loopEnd;
   unsigned int playEnd;
 
   jack_ringbuffer_t *eventBuffer;

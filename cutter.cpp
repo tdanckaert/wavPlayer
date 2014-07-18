@@ -70,6 +70,7 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
     } else {
       cuts.push_back(newCut);
     }
+    updateLoop();
   } else if (button == Qt::LeftButton && 
              iAfter != cuts.begin() && iAfter != cuts.end() ) {
     auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
@@ -125,9 +126,19 @@ Cutter::Marker *Cutter::addCut(unsigned int pos) {
   return p;
 }
 
+void Cutter::updateLoop(void) {
+  if(cuts.size() >= 2) {
+    player->setLoopStart(cuts.front()->pos().x() );
+    player->setLoopEnd(cuts.back()->pos().x() );
+  }
+}
+
 void Cutter::markerMoved(unsigned int pos) {
   std::sort(cuts.begin(), cuts.end(),
             [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); });
+
+  updateLoop();
+
   auto movedMarker = qobject_cast<Cutter::Marker *>(QObject::sender());
   if(sliceStart) {
     if (sliceStart->pos().x() > sliceEnd->pos().x()) {
@@ -203,4 +214,15 @@ void Cutter::prevSlice(void) {
     drawSlice();
     playSlice();
   }
+}
+
+void Cutter::loop(void) {
+  player->loop();
+}
+
+void Cutter::clear(void) {
+  cuts.clear();
+  player->setLoopStart(0);
+  player->setLoopEnd(view->scene()->width());
+
 }
