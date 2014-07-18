@@ -100,7 +100,7 @@ void Cutter::drawSlice(void) {
   }
 }
 
-QGraphicsItem *Cutter::addCut(unsigned int pos) {
+Cutter::Marker *Cutter::addCut(unsigned int pos) {
   QPen pen;
   pen.setColor(Qt::red);
   pen.setCosmetic(true);
@@ -128,15 +128,44 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
 void Cutter::markerMoved(unsigned int pos) {
   std::sort(cuts.begin(), cuts.end(),
             [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); });
+  auto movedMarker = qobject_cast<Cutter::Marker *>(QObject::sender());
   if(sliceStart) {
-    auto iStart = std::find(cuts.begin(), cuts.end(), sliceStart);
-    if(iStart == (cuts.end()-1)) {
-      --iStart;
+    if (sliceStart->pos().x() > sliceEnd->pos().x()) {
+      auto tmp = sliceStart;
+      sliceStart = sliceEnd;
+      sliceEnd = tmp;
     }
-    sliceStart = *iStart;
-    sliceEnd = *(1+iStart);
-
-    drawSlice();
+    // Check if one of the current sliceStart/End markers has moved,
+    // and rebuild the current slice around the marker which has *not*
+    // moved.
+    if(movedMarker == sliceStart) {
+      auto iMarker = std::find(cuts.begin(), cuts.end(), sliceEnd);
+      if (iMarker == cuts.begin()) {
+        sliceEnd = *(++iMarker);
+      }
+      sliceStart = *(--iMarker);
+      drawSlice();
+    } else if(movedMarker == sliceEnd) {
+      auto iMarker = std::find(cuts.begin(), cuts.end(), sliceStart);
+      if (iMarker == (cuts.end()-1) ) {
+        sliceStart = *(--iMarker);
+      }
+      sliceEnd = *(++iMarker);
+      drawSlice();
+    } else if(pos > sliceStart->pos().x() && pos < sliceEnd->pos().x()) {
+      // third case: another marker was moved into the current slice.
+      // Rebuild the slice around the closest pair of markers.
+      if( (pos -sliceStart->pos().x()) < (sliceEnd->pos().x() - pos) ) {
+        // new slice is closer to sliceStart -> make the slice between
+        // sliceStart & new slice the active slice
+        sliceEnd = movedMarker;
+      } else {
+        // new slice is closer to sliceEnd -> (new slice, sliceEnd)
+        // becomes the active slice
+        sliceStart = movedMarker;
+      }
+      drawSlice();
+    }
   }
 }
 

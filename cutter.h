@@ -28,10 +28,10 @@ private:
   JackPlayer *player;
   QGraphicsView *view;
   QGraphicsRectItem *slice;
-  QGraphicsItem *sliceStart;
-  QGraphicsItem *sliceEnd;
-  std::vector<QGraphicsItem *> cuts;
-  QGraphicsItem *addCut(unsigned int pos);
+  Marker *sliceStart;
+  Marker *sliceEnd;
+  std::vector<Marker *> cuts;
+  Marker *addCut(unsigned int pos);
   void drawSlice(void);
 
 public slots:
