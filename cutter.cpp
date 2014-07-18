@@ -106,7 +106,7 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
   pen.setCosmetic(true);
 
   QPolygonF poly;
-  poly << QPointF(0,0) << QPointF(0,15) << QPointF(10,0) << QPointF(0,0);
+  poly << QPointF(0,-5) << QPointF(0,15) << QPointF(13.3,-5) << QPointF(0,-5);
   qDebug() << __func__ << "polygon closed?" << poly.isClosed();
   auto p=new Marker(0);
   p->setPen(pen);
@@ -128,7 +128,16 @@ QGraphicsItem *Cutter::addCut(unsigned int pos) {
 void Cutter::markerMoved(unsigned int pos) {
   std::sort(cuts.begin(), cuts.end(),
             [] (QGraphicsItem *a, QGraphicsItem *b) { return a->pos().x() < b->pos().x(); });
-  drawSlice();
+  if(sliceStart) {
+    auto iStart = std::find(cuts.begin(), cuts.end(), sliceStart);
+    if(iStart == (cuts.end()-1)) {
+      --iStart;
+    }
+    sliceStart = *iStart;
+    sliceEnd = *(1+iStart);
+
+    drawSlice();
+  }
 }
 
 void Cutter::playSlice(void) {
