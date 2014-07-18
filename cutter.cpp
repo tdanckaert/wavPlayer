@@ -52,6 +52,13 @@ public:
 
 #include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
 
+Cutter::Cutter(QObject *parent, JackPlayer *p, QGraphicsView *v) : 
+  QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
+  auto deleteAction = new QAction("delete", &deleteMenu);
+  deleteMenu.addAction(deleteAction);
+  connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
+}
+
 void Cutter::setView(QGraphicsView *v) {
   view = v;
   connect(view, SIGNAL(waveClicked(Qt::MouseButton, QPointF)),
@@ -61,20 +68,26 @@ void Cutter::setView(QGraphicsView *v) {
 void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
                              [scenePos] (decltype(cuts[0]) a) { return ( a->pos().x() > scenePos.x() );});
+  auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
+  bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
+
   if (button == Qt::RightButton) {
-    auto newCut = addCut(scenePos.x() );
-    connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
-            this, SLOT(markerMoved(unsigned int)) );
-    if (iAfter != cuts.end()) {
-      cuts.insert(iAfter, newCut);
+    if( clickedOnMarker) {
+      toDelete = static_cast<Cutter::Marker*>(clickedItem);
+      deleteMenu.popup(QCursor::pos());
     } else {
-      cuts.push_back(newCut);
+      auto newCut = addCut(scenePos.x() );
+      connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
+              this, SLOT(markerMoved(unsigned int)) );
+      if (iAfter != cuts.end()) {
+        cuts.insert(iAfter, newCut);
+      } else {
+        cuts.push_back(newCut);
+      }
+      updateLoop();
     }
-    updateLoop();
   } else if (button == Qt::LeftButton && 
              iAfter != cuts.begin() && iAfter != cuts.end() ) {
-    auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
-    bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
     if( !clickedOnMarker) {
       sliceStart = *(iAfter-1);
       sliceEnd = *(iAfter);
@@ -224,5 +237,18 @@ void Cutter::clear(void) {
   cuts.clear();
   player->setLoopStart(0);
   player->setLoopEnd(view->scene()->width());
+}
 
+void Cutter::deleteMarker() {
+  auto iMarker = std::find(cuts.begin(), cuts.end(), toDelete);
+  cuts.erase(iMarker);
+  updateLoop();
+  if(toDelete == sliceStart || toDelete == sliceEnd) {
+    // TODO: more thorough handling.  Rebuild slice somehow?
+    sliceStart = nullptr;
+    sliceEnd = nullptr;
+  }
+  assert(toDelete);
+  delete toDelete;
+  toDelete = nullptr;
 }

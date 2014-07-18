@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QPointF>
+#include <QMenu>
 
 #include <vector>
 
@@ -16,8 +17,7 @@ class Cutter :public QObject {
   Q_OBJECT
 
   public:
-  Cutter(QObject *parent=0, JackPlayer *p=0, QGraphicsView *v=0) : QObject(parent), player(p), view(v),
-                                                                   slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr) {};
+  Cutter(QObject *parent=0, JackPlayer *p=0, QGraphicsView *v=0);
 
   void setView(QGraphicsView *v);
   void clear(void);
@@ -31,6 +31,8 @@ private:
   QGraphicsRectItem *slice;
   Marker *sliceStart;
   Marker *sliceEnd;
+  Marker *toDelete;
+  QMenu deleteMenu;
   std::vector<Marker *> cuts;
   Marker *addCut(unsigned int pos);
   void drawSlice(void);
@@ -44,6 +46,7 @@ public slots:
 
 private slots:
   void markerMoved(unsigned int newPos);
+  void deleteMarker();
 };
 
 #endif
