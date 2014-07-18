@@ -29,19 +29,18 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->waveOverview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   ui->waveOverview->setInteractive(false);
 
-  auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
-  connect(shortcutPlay, SIGNAL(activated()), &player, SLOT(pause()));
+  cutter.setView(ui->zoomView);
+
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->zoomView, SLOT(updateIndicator(unsigned int)) );
   connect(&player, SIGNAL(positionChanged(unsigned int)), ui->waveOverview, SLOT(updateIndicator(unsigned int)) );
 
   auto shortcutPrevSlice = new QShortcut(QKeySequence(Qt::Key_Left), this);
   auto shortcutNextSlice = new QShortcut(QKeySequence(Qt::Key_Right), this);
+  auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
 
   connect(shortcutPrevSlice, SIGNAL(activated()), &cutter, SLOT(prevSlice()));
   connect(shortcutNextSlice, SIGNAL(activated()), &cutter, SLOT(nextSlice()));
-  
-
-  cutter.setView(ui->zoomView);
+  connect(shortcutPlay, SIGNAL(activated()), &cutter, SLOT(playSlice()));
 }
 
 MainWindow::~MainWindow()
