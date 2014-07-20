@@ -238,18 +238,13 @@ void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
 
 }
 
-const Wave* JackPlayer::loadWave(const QString &fileName) {
-  if(!fileName.isEmpty()) {
-    auto iWave = samples.insert(Wave::openSoundFile(fileName));
-    if(iWave.first->samples.size() 
-       && jack_ringbuffer_write_space(inQueue) >= sizeof(iWave.first)) {
-      jack_ringbuffer_write(inQueue, (const char *)&iWave.first, sizeof(iWave.first));
-      return &(*iWave.first);
-    } else {
-      samples.erase(iWave.first);
-      return nullptr;
-    }
+const Wave* JackPlayer::loadWave(Wave wave) {
+  auto iWave = samples.insert(wave);
+  if(jack_ringbuffer_write_space(inQueue) >= sizeof(iWave.first)) {
+    jack_ringbuffer_write(inQueue, (const char *)&iWave.first, sizeof(iWave.first));
+    return &(*iWave.first);
   } else {
+    samples.erase(iWave.first);
     return nullptr;
   }
 }

@@ -4,6 +4,7 @@
 #include "wave.h"
 
 #include <iostream>
+#include <stdexcept>
 
 #include <QFileDialog>
 #include <QShortcut>
@@ -12,6 +13,7 @@
 #include <QGraphicsPixmapItem>
 #include <QApplication>
 #include <QDesktopWidget>
+#include <QMessageBox>
 
 using std::vector;
 using std::cerr;
@@ -55,11 +57,19 @@ void MainWindow::on_actionQuit_triggered()
 
 void MainWindow::on_actionOpen_triggered()
 {
-  auto pWave = player.loadWave(QFileDialog::getOpenFileName());
-  if (pWave != nullptr) {
-    ui->waveOverview->drawWave(pWave);
-    ui->zoomView->drawWave(pWave);
-    cutter.clear();
+  auto fileName = QFileDialog::getOpenFileName();
+  if (!fileName.isEmpty()) {
+    try {
+      auto pWave = player.loadWave(Wave::openSoundFile(fileName));
+      ui->waveOverview->drawWave(pWave);
+      ui->zoomView->drawWave(pWave);
+      cutter.clear();
+    } catch (std::runtime_error& e) {
+      QMessageBox msgBox;
+      msgBox.setText("Error opening file.");
+      msgBox.exec();
+      on_actionOpen_triggered();
+    }
   }
 }
 

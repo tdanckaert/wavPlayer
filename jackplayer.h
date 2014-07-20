@@ -5,6 +5,8 @@
 
 #include <set>
 
+#include "wave.h"
+
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 
@@ -23,7 +25,7 @@ public:
   JackPlayer(QObject *parent=0);
   ~JackPlayer(void);
 
-  const Wave* loadWave(const QString& filename);
+  const Wave* loadWave(Wave w);
   void setLoopStart(unsigned int start);
   void setLoopEnd(unsigned int end);
 

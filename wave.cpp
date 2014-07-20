@@ -4,6 +4,8 @@
 
 #include <sndfile.hh>
 
+#include <stdexcept>
+
 #include <QString>
 #include <QDebug>
 
@@ -19,6 +21,8 @@ Wave Wave::openSoundFile(const QString& fileName) {
   int size  = fileHandle.frames();
 
   // handle size 0?
+  if(!size)
+    throw std::runtime_error("Error opening file.");
   
   // get some more info of the sample
   int channels = fileHandle.channels();
