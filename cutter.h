@@ -2,7 +2,6 @@
 #define CUTTER_H
 
 #include <QObject>
-#include <QPointF>
 #include <QMenu>
 
 #include <vector>
@@ -35,6 +34,7 @@ private:
   QMenu deleteMenu;
   std::vector<Marker *> cuts;
   Marker *addCut(unsigned int pos);
+  void updateSlice(Marker *start, Marker *end);
   void drawSlice(void);
   void updateLoop(void);
 

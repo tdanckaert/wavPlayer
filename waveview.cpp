@@ -96,10 +96,8 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if(wave) {
     auto scenePos = mapToScene(event->x(),event->y());
-    if (scenePos.x() > 0) {
-      qDebug() << "emit waveClicked(" << event->button() << scenePos.x();
-      emit waveClicked(event->button(), scenePos);
-    }
+    qDebug() << "emit waveClicked(" << event->button() << scenePos.x();
+    emit waveClicked(event->button(), scenePos);
   }
 }
 

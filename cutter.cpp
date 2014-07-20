@@ -67,7 +67,8 @@ void Cutter::setView(QGraphicsView *v) {
 
 void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
-                             [scenePos] (decltype(cuts[0]) a) { return ( a->pos().x() > scenePos.x() );});
+                             [scenePos] (decltype(cuts[0]) a) 
+                             { return ( a->pos().x() > scenePos.x() );} );
   auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
   bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
 
@@ -76,6 +77,20 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
       toDelete = static_cast<Cutter::Marker*>(clickedItem);
       deleteMenu.popup(QCursor::pos());
     } else {
+      if(scenePos.x() < 0) {
+        // when clicked left of the wave, add a cut at the left border:
+        scenePos.setX(0);
+      } else if (scenePos.x() > view->scene()->width()) {
+        // when clicked right of the wave, add a cut at the right:
+        scenePos.setX(view->scene()->width());
+      }
+      // if we already have a cut at that position, don't add another
+      if ( std::find_if(cuts.begin(), cuts.end(),
+                        [scenePos] (decltype(cuts[0]) a)
+                        { return (a->pos().x() == scenePos.x() );} ) != cuts.end() ) {
+        return;
+      }
+
       auto newCut = addCut(scenePos.x() );
       connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
               this, SLOT(markerMoved(unsigned int)) );
@@ -89,9 +104,7 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
   } else if (button == Qt::LeftButton && 
              iAfter != cuts.begin() && iAfter != cuts.end() ) {
     if( !clickedOnMarker) {
-      sliceStart = *(iAfter-1);
-      sliceEnd = *(iAfter);
-      drawSlice();
+      updateSlice(*(iAfter-1),*iAfter);
       playSlice();
     }
   }
@@ -104,6 +117,7 @@ void Cutter::drawSlice(void) {
     auto rect = QRectF(xStart, -5, xEnd-xStart,
                        10+ view->scene()->height() );
     if(slice) {
+      slice->setVisible(true);
       slice->setRect(rect);
     } else {
       slice = view->scene()->addRect(rect);
@@ -111,6 +125,8 @@ void Cutter::drawSlice(void) {
       slice->setBrush(Qt::lightGray);
       slice->setZValue(-1);
     }
+  } else if (slice) {
+    slice->setVisible(false);
   }
 }
 
@@ -136,6 +152,20 @@ Cutter::Marker *Cutter::addCut(unsigned int pos) {
   auto line = new VerticalLine(p);
   line->setPen(pen);
 
+  // check if we have created a new marker inside the active slice:
+  if(sliceStart && pos > sliceStart->pos().x()
+     && pos < sliceEnd ->pos().x() ) {
+    if ( (pos - sliceStart->pos().x())
+         < (sliceEnd->pos().x() - pos) ) {
+      // new marker is closer to sliceStart than to sliceEnd
+      // -> active slice is between Start and new
+      updateSlice(sliceStart, p);
+    } else {
+      // closer to sliceEnd -> active slice is between new and End
+      updateSlice(p, sliceEnd);
+    }
+  }
+
   return p;
 }
 
@@ -155,9 +185,7 @@ void Cutter::markerMoved(unsigned int pos) {
   auto movedMarker = qobject_cast<Cutter::Marker *>(QObject::sender());
   if(sliceStart) {
     if (sliceStart->pos().x() > sliceEnd->pos().x()) {
-      auto tmp = sliceStart;
-      sliceStart = sliceEnd;
-      sliceEnd = tmp;
+      updateSlice(sliceEnd, sliceStart);
     }
     // Check if one of the current sliceStart/End markers has moved,
     // and rebuild the current slice around the marker which has *not*
@@ -165,30 +193,27 @@ void Cutter::markerMoved(unsigned int pos) {
     if(movedMarker == sliceStart) {
       auto iMarker = std::find(cuts.begin(), cuts.end(), sliceEnd);
       if (iMarker == cuts.begin()) {
-        sliceEnd = *(++iMarker);
+        ++iMarker;
       }
-      sliceStart = *(--iMarker);
-      drawSlice();
+      updateSlice(*(iMarker-1), *iMarker);
     } else if(movedMarker == sliceEnd) {
       auto iMarker = std::find(cuts.begin(), cuts.end(), sliceStart);
       if (iMarker == (cuts.end()-1) ) {
-        sliceStart = *(--iMarker);
+        --iMarker;
       }
-      sliceEnd = *(++iMarker);
-      drawSlice();
+      updateSlice(*iMarker, *(1+iMarker));
     } else if(pos > sliceStart->pos().x() && pos < sliceEnd->pos().x()) {
       // third case: another marker was moved into the current slice.
       // Rebuild the slice around the closest pair of markers.
       if( (pos -sliceStart->pos().x()) < (sliceEnd->pos().x() - pos) ) {
         // new slice is closer to sliceStart -> make the slice between
         // sliceStart & new slice the active slice
-        sliceEnd = movedMarker;
+        updateSlice(sliceStart, movedMarker);
       } else {
         // new slice is closer to sliceEnd -> (new slice, sliceEnd)
         // becomes the active slice
-        sliceStart = movedMarker;
+        updateSlice(movedMarker, sliceEnd);
       }
-      drawSlice();
     }
   }
 }
@@ -208,11 +233,12 @@ void Cutter::nextSlice(void) {
       qDebug() << "at last cut, wraparound" ;
       current = cuts.begin();
     }
-    sliceStart = *current;
-    sliceEnd = *(++current);
-    drawSlice();
-    playSlice();
+    updateSlice(*current, *(1+current));
+  } else if (cuts.size() >= 2) {
+    // if no slice is active, make the first slice the active one
+    updateSlice(cuts[0], cuts[1]);
   }
+  playSlice();
 }
 
 void Cutter::prevSlice(void) {
@@ -222,11 +248,12 @@ void Cutter::prevSlice(void) {
     if (current == cuts.begin()) {
       current = --cuts.end();
     }
-    sliceEnd = *current;
-    sliceStart  = *(--current);
-    drawSlice();
-    playSlice();
+    updateSlice(*(current-1), *current);
+  } else if (cuts.size() >= 2) {
+    // if no slice is active, make the last slice the active one
+    updateSlice( *(cuts.end() - 2), *(cuts.end() -1) );
   }
+  playSlice();
 }
 
 void Cutter::loop(void) {
@@ -240,15 +267,30 @@ void Cutter::clear(void) {
 }
 
 void Cutter::deleteMarker() {
+  assert(toDelete);
   auto iMarker = std::find(cuts.begin(), cuts.end(), toDelete);
+  if(toDelete == sliceStart) {
+    if(iMarker != cuts.begin()) {
+      updateSlice(*(iMarker -1), sliceEnd);
+    } else {
+      updateSlice(nullptr, nullptr);
+    }
+  } else if (toDelete == sliceEnd) {
+    if( (iMarker + 1) != cuts.end() ) {
+      updateSlice(sliceStart, *(iMarker+1));
+    } else {
+      updateSlice(nullptr, nullptr);
+    }
+  }
   cuts.erase(iMarker);
   updateLoop();
-  if(toDelete == sliceStart || toDelete == sliceEnd) {
-    // TODO: more thorough handling.  Rebuild slice somehow?
-    sliceStart = nullptr;
-    sliceEnd = nullptr;
-  }
-  assert(toDelete);
+
   delete toDelete;
   toDelete = nullptr;
+}
+
+inline void Cutter::updateSlice(Marker *start, Marker *end) {
+  sliceStart = start;
+  sliceEnd = end;
+  drawSlice();
 }
