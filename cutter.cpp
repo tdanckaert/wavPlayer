@@ -104,6 +104,7 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
       } else {
         cuts.push_back(newCut);
       }
+      emit cutsChanged(cuts.size() > 1);
       updateLoop();
     }
   } else if (button == Qt::LeftButton && 
@@ -267,6 +268,7 @@ void Cutter::loop(void) {
 
 void Cutter::clear(void) {
   cuts.clear();
+  emit cutsChanged(false); // there are no slices -> disable export
   player->setLoopStart(0);
   player->setLoopEnd(view->scene()->width());
 }
@@ -288,6 +290,8 @@ void Cutter::deleteMarker() {
     }
   }
   cuts.erase(iMarker);
+  emit cutsChanged(cuts.size() > 1);
+
   updateLoop();
 
   delete toDelete;

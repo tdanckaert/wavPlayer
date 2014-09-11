@@ -31,6 +31,7 @@ private slots:
   void on_actionPause_triggered();
   void on_actionStop_triggered();
   void on_actionExport_triggered();
+  void enableExport(bool enabled);
 };
 
 #endif // MAINWINDOW_H

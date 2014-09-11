@@ -40,9 +40,12 @@ MainWindow::MainWindow(QWidget *parent) :
   auto shortcutNextSlice = new QShortcut(QKeySequence(Qt::Key_Right), this);
   auto shortcutPlay = new QShortcut(QKeySequence(Qt::Key_Space), this);
 
-  connect(shortcutPrevSlice, SIGNAL(activated()), &cutter, SLOT(prevSlice()));
-  connect(shortcutNextSlice, SIGNAL(activated()), &cutter, SLOT(nextSlice()));
-  connect(shortcutPlay, SIGNAL(activated()), &cutter, SLOT(playSlice()));
+  connect(shortcutPrevSlice, SIGNAL(activated()), &cutter, SLOT(prevSlice()) );
+  connect(shortcutNextSlice, SIGNAL(activated()), &cutter, SLOT(nextSlice()) );
+  connect(shortcutPlay, SIGNAL(activated()), &cutter, SLOT(playSlice()) );
+
+  enableExport(false);
+  connect(&cutter, SIGNAL(cutsChanged(bool)), this, SLOT(enableExport(bool)) );
 }
 
 MainWindow::~MainWindow()
@@ -98,4 +101,8 @@ void MainWindow::on_actionExport_triggered()
   auto path = QFileDialog::getSaveFileName(this, tr("Export Directory"));
   if (!path.isEmpty())
     cutter.exportSamples(path);
+}
+
+void MainWindow::enableExport(bool enabled) {
+  ui->actionExport->setEnabled(enabled);
 }

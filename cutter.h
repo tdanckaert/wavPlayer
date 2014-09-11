@@ -49,6 +49,9 @@ public slots:
 private slots:
   void markerMoved(unsigned int newPos);
   void deleteMarker();
+
+signals:
+  void cutsChanged(bool haveSlice);
 };
 
 #endif
