@@ -92,3 +92,10 @@ void MainWindow::on_actionPause_triggered()
 {
   player.pause();
 }
+
+void MainWindow::on_actionExport_triggered()
+{
+  auto path = QFileDialog::getSaveFileName(this, tr("Export Directory"));
+  if (!path.isEmpty())
+    cutter.exportSamples(path);
+}

@@ -22,6 +22,8 @@ class Cutter :public QObject {
   void clear(void);
   void loop(void);
 
+  void exportSamples(const QString& path) const;
+
 private:
   class Marker;
   class VerticalLine;

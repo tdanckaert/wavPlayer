@@ -274,3 +274,7 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
     }
   }
 }
+
+const Wave& JackPlayer::getCurWave(void) const {
+  return *curSample;
+}

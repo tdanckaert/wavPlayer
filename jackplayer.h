@@ -28,6 +28,7 @@ public:
   const Wave* loadWave(Wave w);
   void setLoopStart(unsigned int start);
   void setLoopEnd(unsigned int end);
+  const Wave& getCurWave(void) const;
 
 public slots:
   void pause();

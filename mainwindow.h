@@ -30,6 +30,7 @@ private slots:
   void on_actionLoop_triggered();
   void on_actionPause_triggered();
   void on_actionStop_triggered();
+  void on_actionExport_triggered();
 };
 
 #endif // MAINWINDOW_H

@@ -1,12 +1,17 @@
 #include "cutter.h"
 #include "jackplayer.h"
+#include "wave.h"
+
+#include <sndfile.hh>
 
 #include <QObject>
 #include <QGraphicsView>
 #include <QGraphicsItem>
 #include <QDebug>
 
+#include <math.h>
 #include <cassert>
+#include <stdexcept>
 
 class Cutter::Marker : public QObject, public QGraphicsPolygonItem {
   Q_OBJECT
@@ -293,4 +298,30 @@ inline void Cutter::updateSlice(Marker *start, Marker *end) {
   sliceStart = start;
   sliceEnd = end;
   drawSlice();
+}
+
+void Cutter::exportSamples(const QString& path) const {
+  assert(cuts.size() > 1); // need at least one slice to export -> minimum of 2 cuts
+
+  const int format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+  const int sampleRate = 44100;
+  const Wave& wave = player->getCurWave();
+
+  // decimals needed for the number of cuts: 1 + log10(number of slices)
+  unsigned int nDecimals = 1+floor(log10(cuts.size()-1));
+
+  unsigned int nWaves=1;
+  for(auto iCut = cuts.begin(); (1+iCut) != cuts.end();++iCut) {
+    unsigned int start = (*iCut)->x();
+    unsigned int end = (*(1+iCut))->x();
+    auto fileName = path + QString("%1.wav").arg(nWaves++, nDecimals, 10, QChar('0'));
+    SndfileHandle outFile(fileName.toAscii().constData(), SFM_WRITE,
+                          format, wave.channels, sampleRate);
+    if (!outFile) {
+      auto errMsg =  ("Error opening file " + fileName).toAscii().constData();
+      throw std::runtime_error(errMsg);
+    }
+    outFile.writef(&wave.samples[start*wave.channels], end-start);
+  }
+  
 }
