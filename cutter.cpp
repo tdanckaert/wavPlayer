@@ -269,6 +269,8 @@ void Cutter::loop(void) {
 void Cutter::clear(void) {
   cuts.clear();
   emit cutsChanged(false); // there are no slices -> disable export
+  slice = nullptr;
+  updateSlice(nullptr, nullptr);
   player->setLoopStart(0);
   player->setLoopEnd(view->scene()->width());
 }
