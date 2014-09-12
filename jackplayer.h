@@ -42,7 +42,7 @@ private:
   PlayState state;
   bool haveSample;
   std::set<Wave>::iterator curSample;
-  jack_port_t *outputPort;
+  jack_port_t *outputPort1, *outputPort2;
   jack_client_t *client;
 
   unsigned int playbackIndex; /* 0 to curSample->size() */

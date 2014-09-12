@@ -57,8 +57,13 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
   outQueue = jack_ringbuffer_create(sizeof(set<Wave>::iterator)*10);
   jack_ringbuffer_mlock(outQueue);
   
-  outputPort = jack_port_register ( client,
-                                    "output",
+  outputPort1 = jack_port_register ( client,
+                                    "output1",
+                                    JACK_DEFAULT_AUDIO_TYPE,
+                                    JackPortIsOutput,
+                                    0 );
+  outputPort2 = jack_port_register ( client,
+                                    "output2",
                                     JACK_DEFAULT_AUDIO_TYPE,
                                     JackPortIsOutput,
                                     0 );
@@ -72,8 +77,8 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
 
   jack_activate(client);
 
-  jack_connect(client, "wavPlayer:output", "system:playback_1");
-  jack_connect(client, "wavPlayer:output", "system:playback_2");
+  jack_connect(client, "wavPlayer:output1", "system:playback_1");
+  jack_connect(client, "wavPlayer:output2", "system:playback_2");
 
 }
 
@@ -250,7 +255,8 @@ const Wave* JackPlayer::loadWave(Wave wave) {
 }
 
 void JackPlayer::writeBuffer(jack_nframes_t nframes) {
-  float* outputBuffer= static_cast<float*>(jack_port_get_buffer(outputPort, nframes));
+  float* outputBuffer1= static_cast<float*>(jack_port_get_buffer(outputPort1, nframes));
+  float* outputBuffer2= static_cast<float*>(jack_port_get_buffer(outputPort2, nframes));
   
   for (jack_nframes_t i = 0; i < nframes; ++i) {
     // Check if playbackIndex is past the end.  When in a loop: return to start, if not: stop.
@@ -264,13 +270,17 @@ void JackPlayer::writeBuffer(jack_nframes_t nframes) {
       }
     }
 
-    outputBuffer[i] = 0.;
     if (state == PLAYING || state == LOOPING ) {
-      // for buffers with multiple channels, we just average every channel
-      for(unsigned int j=0; j<curSample->channels; ++j) {
-        outputBuffer[i] += curSample->samples[playbackIndex++];
+      outputBuffer1[i] = curSample->samples[playbackIndex];
+      if (curSample->channels >=2) {
+        outputBuffer2[i] = curSample->samples[++playbackIndex];
+        playbackIndex += (curSample->channels -1);
+      } else {
+        outputBuffer2[i] = curSample->samples[playbackIndex];
+        ++playbackIndex;
       }
-      outputBuffer[i] /= curSample->channels;
+    } else {
+      outputBuffer2[i] = outputBuffer1[i] = 0.;
     }
   }
 }
