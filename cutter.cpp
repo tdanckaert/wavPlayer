@@ -58,7 +58,7 @@ public:
 #include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
 
 Cutter::Cutter(QObject *parent, JackPlayer *p, QGraphicsView *v) : 
-  QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
+  QObject(parent), ctrlPressed(false), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
   auto deleteAction = new QAction("delete", &deleteMenu);
   deleteMenu.addAction(deleteAction);
   connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
@@ -77,11 +77,11 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
   auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
   bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
 
-  if (button == Qt::RightButton) {
-    if( clickedOnMarker) {
-      toDelete = static_cast<Cutter::Marker*>(clickedItem);
-      deleteMenu.popup(QCursor::pos());
-    } else {
+  if (button == Qt::RightButton && clickedOnMarker) {
+    toDelete = static_cast<Cutter::Marker*>(clickedItem);
+    deleteMenu.popup(QCursor::pos());
+  } else if (button == Qt::LeftButton) {
+    if(ctrlPressed) { // CTRL-click: add cut
       if(scenePos.x() < 0) {
         // when clicked left of the wave, add a cut at the left border:
         scenePos.setX(0);
@@ -106,10 +106,8 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
       }
       emit cutsChanged(cuts.size() > 1);
       updateLoop();
-    }
-  } else if (button == Qt::LeftButton && 
-             iAfter != cuts.begin() && iAfter != cuts.end() ) {
-    if( !clickedOnMarker) {
+    } else if (iAfter != cuts.begin() && iAfter != cuts.end()
+               && !clickedOnMarker ) { // left click inside a slice
       updateSlice(*(iAfter-1),*iAfter);
       playSlice();
     }

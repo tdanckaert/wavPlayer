@@ -18,6 +18,10 @@ public:
   explicit MainWindow(QWidget *parent = 0);
   ~MainWindow();
 
+protected:
+  void keyPressEvent(QKeyEvent *event);
+  void keyReleaseEvent(QKeyEvent *event);
+
 private:
   Ui::MainWindow *ui;
   JackPlayer player;

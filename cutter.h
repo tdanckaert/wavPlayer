@@ -23,10 +23,12 @@ class Cutter :public QObject {
   void loop(void);
 
   void exportSamples(const QString& path) const;
+  void setCtrlPressed(bool pressed) { ctrlPressed = pressed; };
 
 private:
   class Marker;
   class VerticalLine;
+  bool ctrlPressed;
   JackPlayer *player;
   QGraphicsView *view;
   QGraphicsRectItem *slice;
