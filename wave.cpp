@@ -24,7 +24,7 @@ public:
 
     mpg123_param(mh, MPG123_ADD_FLAGS, MPG123_FORCE_FLOAT, 0.);
 
-    if (mpg123_open(mh, fileName.toAscii().constData()) != MPG123_OK
+    if (mpg123_open(mh, fileName.toLatin1().constData()) != MPG123_OK
         || mpg123_getformat(mh, &rate, &channels, &encoding) != MPG123_OK )
       throw std::runtime_error(string("mpg123 error: ") + mpg123_strerror(mh));
 

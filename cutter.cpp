@@ -319,10 +319,10 @@ void Cutter::exportSamples(const QString& path) const {
     unsigned int start = (*iCut)->x();
     unsigned int end = (*(1+iCut))->x();
     auto fileName = path + QString("%1.wav").arg(nWaves++, nDecimals, 10, QChar('0'));
-    SndfileHandle outFile(fileName.toAscii().constData(), SFM_WRITE,
+    SndfileHandle outFile(fileName.toLatin1().constData(), SFM_WRITE,
                           format, wave.channels, sampleRate);
     if (!outFile) {
-      auto errMsg =  ("Error opening file " + fileName).toAscii().constData();
+      auto errMsg =  ("Error opening file " + fileName).toLatin1().constData();
       throw std::runtime_error(errMsg);
     }
     outFile.writef(&wave.samples[start*wave.channels], end-start);
