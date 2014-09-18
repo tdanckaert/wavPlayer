@@ -17,7 +17,7 @@ TEMPLATE = app
 
 QMAKE_CXXFLAGS += -std=c++0x
 
-LIBS += -ljack -lsndfile
+LIBS += -ljack -lsndfile -lmpg123
 
 SOURCES += main.cpp\
         mainwindow.cpp \
