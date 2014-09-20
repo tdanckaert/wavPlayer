@@ -8,6 +8,8 @@
 #include <QGraphicsView>
 #include <QGraphicsItem>
 #include <QDebug>
+#include <QFile>
+#include <QMessageBox>
 
 #include <math.h>
 #include <cassert>
@@ -307,6 +309,7 @@ inline void Cutter::updateSlice(Marker *start, Marker *end) {
 void Cutter::exportSamples(const QString& path) const {
   assert(cuts.size() > 1); // need at least one slice to export -> minimum of 2 cuts
 
+  // soundfile parameters are the same for each slice:
   const int format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
   const int sampleRate = 44100;
   const Wave& wave = player->getCurWave();
@@ -315,10 +318,33 @@ void Cutter::exportSamples(const QString& path) const {
   unsigned int nDecimals = 1+floor(log10(cuts.size()-1));
 
   unsigned int nWaves=1;
+  bool overwriteAll = false;
   for(auto iCut = cuts.begin(); (1+iCut) != cuts.end();++iCut) {
     unsigned int start = (*iCut)->x();
     unsigned int end = (*(1+iCut))->x();
     auto fileName = path + QString("%1.wav").arg(nWaves++, nDecimals, 10, QChar('0'));
+
+    if(QFile::exists(fileName) && !overwriteAll) {
+      QMessageBox askOverwrite(QMessageBox::Question,
+                               "Overwrite existing file?",
+                               "A file named " + fileName + " already exists. Do you want to replace it?",
+                               QMessageBox::Yes | QMessageBox::YesToAll | QMessageBox::No | QMessageBox::NoToAll);
+      askOverwrite.setDefaultButton(QMessageBox::NoToAll);
+      switch (askOverwrite.exec()) {
+      case QMessageBox::Yes:
+        break;
+      case QMessageBox::YesToAll:
+        overwriteAll = true;
+        break;
+      case QMessageBox::No:
+        continue;
+        break;
+      case QMessageBox::NoToAll:
+        return; 
+        break;
+      }
+    }
+
     SndfileHandle outFile(fileName.toLatin1().constData(), SFM_WRITE,
                           format, wave.channels, sampleRate);
     if (!outFile) {
