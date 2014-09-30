@@ -34,7 +34,7 @@ protected:
   void paintEvent(QPaintEvent *event);
 
 signals:
-  void waveClicked(Qt::MouseButton b, QPointF scenePos);
+  void waveClicked(QMouseEvent *event);
 
 public slots:
   void updateIndicator(unsigned int playPos);

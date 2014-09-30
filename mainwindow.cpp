@@ -110,7 +110,6 @@ void MainWindow::enableExport(bool enabled) {
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
   if (event->key() == Qt::Key_Control) {
-    cutter.setCtrlPressed(true);
     ui->zoomView->setCursor(Qt::CrossCursor);
   } else {
     QWidget::keyPressEvent(event);
@@ -119,7 +118,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event) {
   if (event->key() == Qt::Key_Control) {
-    cutter.setCtrlPressed(false);
     ui->zoomView->unsetCursor();
   } else {
     QWidget::keyReleaseEvent(event);

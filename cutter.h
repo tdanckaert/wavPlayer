@@ -23,12 +23,10 @@ class Cutter :public QObject {
   void loop(void);
 
   void exportSamples(const QString& path) const;
-  void setCtrlPressed(bool pressed) { ctrlPressed = pressed; };
 
 private:
   class Marker;
   class VerticalLine;
-  bool ctrlPressed;
   JackPlayer *player;
   QGraphicsView *view;
   QGraphicsRectItem *slice;
@@ -43,7 +41,7 @@ private:
   void updateLoop(void);
 
 public slots:
-  void handleMousePress(Qt::MouseButton button, QPointF scenePos);
+  void handleMousePress(QMouseEvent *event);
   void nextSlice(void);
   void prevSlice(void);
   void playSlice(void);

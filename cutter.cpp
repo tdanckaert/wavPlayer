@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QGraphicsView>
 #include <QGraphicsItem>
+#include <QMouseEvent>
 #include <QDebug>
 #include <QFile>
 #include <QMessageBox>
@@ -60,7 +61,7 @@ public:
 #include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
 
 Cutter::Cutter(QObject *parent, JackPlayer *p, QGraphicsView *v) : 
-  QObject(parent), ctrlPressed(false), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
+  QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
   auto deleteAction = new QAction("delete", &deleteMenu);
   deleteMenu.addAction(deleteAction);
   connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
@@ -68,11 +69,13 @@ Cutter::Cutter(QObject *parent, JackPlayer *p, QGraphicsView *v) :
 
 void Cutter::setView(QGraphicsView *v) {
   view = v;
-  connect(view, SIGNAL(waveClicked(Qt::MouseButton, QPointF)),
-          this, SLOT(handleMousePress(Qt::MouseButton, QPointF)) );
+  connect(view, SIGNAL(waveClicked(QMouseEvent *)),
+          this, SLOT(handleMousePress(QMouseEvent *)));
 }
 
-void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
+void Cutter::handleMousePress(QMouseEvent *event) {
+  auto scenePos = view->mapToScene(event->x(),event->y());
+  auto button = event->button();
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
                              [scenePos] (decltype(cuts[0]) a) 
                              { return ( a->pos().x() > scenePos.x() );} );
@@ -83,7 +86,7 @@ void Cutter::handleMousePress(Qt::MouseButton button, QPointF scenePos) {
     toDelete = static_cast<Cutter::Marker*>(clickedItem);
     deleteMenu.popup(QCursor::pos());
   } else if (button == Qt::LeftButton) {
-    if(ctrlPressed) { // CTRL-click: add cut
+    if(event->modifiers() & Qt::ControlModifier) { // CTRL-click: add cut
       if(scenePos.x() < 0) {
         // when clicked left of the wave, add a cut at the left border:
         scenePos.setX(0);
