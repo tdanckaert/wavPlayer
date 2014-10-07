@@ -61,11 +61,6 @@ void WaveView::drawWave(const Wave *wave) {
   zoomLevel = 1/transform().m11();
 }
 
-void WaveView::scrollContentsBy(int dx, int dy) {
-  qDebug() << __func__ << dx << dy;
-  QGraphicsView::scrollContentsBy(dx,dy);
-}
-
 unsigned int WaveView::visibleRange(void) {
   if (!isInteractive() ) {
     // when not interactive, always keep the entire wave visible:
@@ -104,41 +99,53 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if (wave) {
-    if (event->button() == Qt::LeftButton 
+    auto clickedItem = scene()->itemAt(mapToScene(event->pos()), transform());
+    bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
+    if ( clickedOnMarker || event->button() == Qt::RightButton) {
+      emit waveClicked(event);
+    } else if (event->button() == Qt::LeftButton 
         && event->modifiers() == Qt::NoModifier) {
       selection->setVisible(false); // previous selection should disappear on a left-click
       isDragging = true;
-      dragStart = mapToScene(event->pos());
+      dragStart = event->pos();
     }
-    emit waveClicked(event);
   }
 }
 
 void WaveView::mouseReleaseEvent(QMouseEvent *event) {
   if (event->button() == Qt::LeftButton) {
     isDragging = false;
+    qDebug() << __func__ << ": x() = " << event->x() 
+             << ", " << " dragStart.x() = " << dragStart.x();
+    if (wave && 
+        (event->modifiers() == Qt::ControlModifier || !selection->isVisible() ) ) {
+      // pass on the event when Ctrl is pressed, or when it's just a click (no selection).
+      emit waveClicked(event);
+    }
   }
 }
 
 void WaveView::mouseMoveEvent(QMouseEvent *event) {
-  if (!isDragging)
-    return;
+  if (!isDragging) {
+    return QGraphicsView::mouseMoveEvent(event);
+  }
 
   auto pos = mapToScene(event->x(),event->y());
+  auto dragStartX = mapToScene(dragStart).x();
 
   qreal xLeft, width;
-  if (dragStart.x() < pos.x()) {
-    xLeft = dragStart.x();
+  if (dragStartX < pos.x()) {
+    xLeft = dragStartX;
     width = pos.x() - xLeft;
   } else {
     xLeft = pos.x();
-    width = dragStart.x() - xLeft ;
+    width = dragStartX - xLeft ;
   }
   auto rect = QRectF(QRectF(xLeft, -5, width,
                             10+ scene()->height()));
   selection->setRect(rect);
-  selection->setVisible(true);
-
+  // only select if mouse has moved more than 5 px
+  selection->setVisible(fabs(event->x() - dragStart.x()) > 5);
 }
 
 void WaveView::paintEvent(QPaintEvent *event) {

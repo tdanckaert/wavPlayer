@@ -16,7 +16,7 @@ public:
 
 private:
   bool isDragging;
-  QPointF dragStart;
+  QPoint dragStart;
   QGraphicsRectItem *selection;
   QGraphicsLineItem *indicator;
   float zoomLevel;
@@ -30,7 +30,6 @@ private:
   unsigned int visibleRange(void);
 
 protected:
-  void scrollContentsBy(int dx, int dy);
   void resizeEvent(QResizeEvent *event);
   void wheelEvent(QWheelEvent *event);
   void mousePressEvent(QMouseEvent *event);
