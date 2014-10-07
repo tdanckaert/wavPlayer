@@ -120,6 +120,7 @@ QGraphicsItem* WaveView::markerAt(QPoint pos) {
 }
 
 void WaveView::mouseReleaseEvent(QMouseEvent *event) {
+  QGraphicsView::mouseReleaseEvent(event);
   if (event->button() == Qt::LeftButton) {
     isDragging = false;
     qDebug() << __func__ << ": x() = " << event->x() 
@@ -133,26 +134,25 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void WaveView::mouseMoveEvent(QMouseEvent *event) {
-  if (!isDragging) {
-    return QGraphicsView::mouseMoveEvent(event);
-  }
+  QGraphicsView::mouseMoveEvent(event);
+  if (isDragging) {
+    auto pos = mapToScene(event->x(),event->y());
+    auto dragStartX = mapToScene(dragStart).x();
 
-  auto pos = mapToScene(event->x(),event->y());
-  auto dragStartX = mapToScene(dragStart).x();
-
-  qreal xLeft, width;
-  if (dragStartX < pos.x()) {
-    xLeft = dragStartX;
-    width = pos.x() - xLeft;
-  } else {
-    xLeft = pos.x();
-    width = dragStartX - xLeft ;
+    qreal xLeft, width;
+    if (dragStartX < pos.x()) {
+      xLeft = dragStartX;
+      width = pos.x() - xLeft;
+    } else {
+      xLeft = pos.x();
+      width = dragStartX - xLeft ;
+    }
+    auto rect = QRectF(QRectF(xLeft, -5, width,
+                              10+ scene()->height()));
+    selection->setRect(rect);
+    // only select if mouse has moved more than 5 px
+    selection->setVisible(fabs(event->x() - dragStart.x()) > 5);
   }
-  auto rect = QRectF(QRectF(xLeft, -5, width,
-                            10+ scene()->height()));
-  selection->setRect(rect);
-  // only select if mouse has moved more than 5 px
-  selection->setVisible(fabs(event->x() - dragStart.x()) > 5);
 }
 
 void WaveView::paintEvent(QPaintEvent *event) {
