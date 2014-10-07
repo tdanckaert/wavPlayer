@@ -17,6 +17,8 @@ using std::vector;
 
 WaveView::WaveView(QWidget *parent) :
   QGraphicsView(parent),
+  isDragging(false),
+  selection(nullptr),
   zoomLevel(1.0),
   wave(nullptr)
 {
@@ -30,12 +32,19 @@ WaveView::WaveView(QWidget *parent) :
 void WaveView::drawWave(const Wave *wave) {
   pixmaps.clear();
   scene()->clear();
+
   QPen pen;
   pen.setCosmetic(true);
-  auto color = QColor(Qt::green);
-  pen.setColor(color);
+  pen.setColor(Qt::green);
   indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
   indicator->setZValue(0.5); // draw on top of pixmaps
+
+  selection = scene()->addRect(QRectF(0.0,0.0,1,1));
+  selection->setVisible(false);
+  selection->setOpacity(0.3);
+  selection->setBrush(Qt::blue);
+  selection->setZValue(-0.5);
+
   this->wave = wave;
 
   scene()->setSceneRect(0,0,static_cast<float>(wave->samples.size()/wave->channels), pixmapHeight());
@@ -58,7 +67,7 @@ void WaveView::scrollContentsBy(int dx, int dy) {
 }
 
 unsigned int WaveView::visibleRange(void) {
-  if(!isInteractive() ) {
+  if (!isInteractive() ) {
     // when not interactive, always keep the entire wave visible:
     return scene()->sceneRect().width();
   } else {
@@ -76,8 +85,8 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 }
 
 void WaveView::wheelEvent(QWheelEvent *event) {
-  if(isInteractive() ) {
-    if(event->orientation() == Qt::Horizontal) {
+  if (isInteractive() ) {
+    if (event->orientation() == Qt::Horizontal) {
       // scroll view horizontally
       QGraphicsView::wheelEvent(event);
     } else {
@@ -94,9 +103,42 @@ void WaveView::wheelEvent(QWheelEvent *event) {
 void WaveView::mousePressEvent(QMouseEvent *event) {
   QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
-  if(wave) {
+  if (wave) {
+    if (event->button() == Qt::LeftButton 
+        && event->modifiers() == Qt::NoModifier) {
+      selection->setVisible(false); // previous selection should disappear on a left-click
+      isDragging = true;
+      dragStart = mapToScene(event->pos());
+    }
     emit waveClicked(event);
   }
+}
+
+void WaveView::mouseReleaseEvent(QMouseEvent *event) {
+  if (event->button() == Qt::LeftButton) {
+    isDragging = false;
+  }
+}
+
+void WaveView::mouseMoveEvent(QMouseEvent *event) {
+  if (!isDragging)
+    return;
+
+  auto pos = mapToScene(event->x(),event->y());
+
+  qreal xLeft, width;
+  if (dragStart.x() < pos.x()) {
+    xLeft = dragStart.x();
+    width = pos.x() - xLeft;
+  } else {
+    xLeft = pos.x();
+    width = dragStart.x() - xLeft ;
+  }
+  auto rect = QRectF(QRectF(xLeft, -5, width,
+                            10+ scene()->height()));
+  selection->setRect(rect);
+  selection->setVisible(true);
+
 }
 
 void WaveView::paintEvent(QPaintEvent *event) {
@@ -139,10 +181,10 @@ void WaveView::updateGraphics(void) {
    }
 
   // check all pixmaps still have the correct position and zoomLevel:
-  if(pixmaps.size()) {
+  if (pixmaps.size()) {
     // get sample offset of the left border of the view
     auto xLeft = static_cast<int>(mapToScene(QPoint(2,0)).x());
-    if(xLeft < 0)
+    if (xLeft < 0)
        xLeft = 0;
 
     unsigned int indexLeft = (xLeft / samplesPerTile) % pixmaps.size();
@@ -200,7 +242,7 @@ void WaveView::drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos) {
     }
     QPainter painter(&map);
 
-    if(zoomLevel < 1.1) {
+    if (zoomLevel < 1.1) {
       QPen pen;
       pen.setWidth(2);
       painter.setPen(pen);

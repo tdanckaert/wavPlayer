@@ -15,6 +15,9 @@ public:
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
 
 private:
+  bool isDragging;
+  QPointF dragStart;
+  QGraphicsRectItem *selection;
   QGraphicsLineItem *indicator;
   float zoomLevel;
   float maxAmplitude;
@@ -31,6 +34,8 @@ protected:
   void resizeEvent(QResizeEvent *event);
   void wheelEvent(QWheelEvent *event);
   void mousePressEvent(QMouseEvent *event);
+  void mouseReleaseEvent(QMouseEvent *event);
+  void mouseMoveEvent(QMouseEvent *event);
   void paintEvent(QPaintEvent *event);
 
 signals:
