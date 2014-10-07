@@ -6,7 +6,7 @@
 
 #include <vector>
 
-class QGraphicsView;
+class WaveView;
 class QGraphicsItem;
 class QGraphicsRectItem;
 class QMouseEvent;
@@ -16,9 +16,9 @@ class Cutter :public QObject {
   Q_OBJECT
 
   public:
-  Cutter(QObject *parent=0, JackPlayer *p=0, QGraphicsView *v=0);
+  Cutter(QObject *parent=0, JackPlayer *p=0, WaveView *v=0);
 
-  void setView(QGraphicsView *v);
+  void setView(WaveView *v);
   void clear(void);
   void loop(void);
 
@@ -28,7 +28,7 @@ private:
   class Marker;
   class VerticalLine;
   JackPlayer *player;
-  QGraphicsView *view;
+  WaveView *view;
   QGraphicsRectItem *slice;
   Marker *sliceStart;
   Marker *sliceEnd;

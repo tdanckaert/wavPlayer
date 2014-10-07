@@ -1,11 +1,11 @@
 #include "cutter.h"
 #include "jackplayer.h"
 #include "wave.h"
+#include "waveview.h"
 
 #include <sndfile.hh>
 
 #include <QObject>
-#include <QGraphicsView>
 #include <QGraphicsItem>
 #include <QMouseEvent>
 #include <QDebug>
@@ -60,14 +60,14 @@ public:
 
 #include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
 
-Cutter::Cutter(QObject *parent, JackPlayer *p, QGraphicsView *v) : 
+Cutter::Cutter(QObject *parent, JackPlayer *p, WaveView *v) : 
   QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
   auto deleteAction = new QAction("delete", &deleteMenu);
   deleteMenu.addAction(deleteAction);
   connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
 }
 
-void Cutter::setView(QGraphicsView *v) {
+void Cutter::setView(WaveView *v) {
   view = v;
   connect(view, SIGNAL(waveClicked(QMouseEvent *)),
           this, SLOT(handleMousePress(QMouseEvent *)));
@@ -79,11 +79,10 @@ void Cutter::handleMousePress(QMouseEvent *event) {
   auto iAfter = std::find_if(cuts.begin(), cuts.end(), 
                              [scenePos] (decltype(cuts[0]) a) 
                              { return ( a->pos().x() > scenePos.x() );} );
-  auto clickedItem = view->scene()->itemAt(scenePos, view->transform());
-  bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
 
-  if (button == Qt::RightButton && clickedOnMarker) {
-    toDelete = static_cast<Cutter::Marker*>(clickedItem);
+  auto clickedMarker = view->markerAt(event->pos());
+  if (clickedMarker && button == Qt::RightButton) {
+    toDelete = static_cast<Cutter::Marker*>(clickedMarker);
     deleteMenu.popup(QCursor::pos());
   } else if (button == Qt::LeftButton) {
     if(event->modifiers() & Qt::ControlModifier) { // CTRL-click: add cut
@@ -111,8 +110,8 @@ void Cutter::handleMousePress(QMouseEvent *event) {
       }
       emit cutsChanged(cuts.size() > 1);
       updateLoop();
-    } else if (iAfter != cuts.begin() && iAfter != cuts.end()
-               && !clickedOnMarker ) { // left click inside a slice
+    } else if (!clickedMarker 
+               && iAfter != cuts.begin() && iAfter != cuts.end()) { // left click inside a slice
       updateSlice(*(iAfter-1),*iAfter);
       playSlice();
     }

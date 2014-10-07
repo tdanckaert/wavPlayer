@@ -13,6 +13,7 @@ public:
   explicit WaveView(QWidget *parent = 0);
   void drawWave(const Wave *wave);
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
+  QGraphicsItem *markerAt(QPoint pos);
 
 private:
   bool isDragging;

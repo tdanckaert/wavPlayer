@@ -99,9 +99,7 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if (wave) {
-    auto clickedItem = scene()->itemAt(mapToScene(event->pos()), transform());
-    bool clickedOnMarker = clickedItem && clickedItem->zValue() >= 1.0;
-    if ( clickedOnMarker || event->button() == Qt::RightButton) {
+    if (markerAt(event->pos() ) ) {
       emit waveClicked(event);
     } else if (event->button() == Qt::LeftButton 
         && event->modifiers() == Qt::NoModifier) {
@@ -109,6 +107,15 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
       isDragging = true;
       dragStart = event->pos();
     }
+  }
+}
+
+QGraphicsItem* WaveView::markerAt(QPoint pos) {
+  auto clickedItem = scene()->itemAt(mapToScene(pos), transform());
+  if (clickedItem && clickedItem->zValue() >= 1.) {
+    return clickedItem;
+  } else {
+    return nullptr;
   }
 }
 
