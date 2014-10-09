@@ -103,7 +103,10 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
       emit waveClicked(event);
     } else if (event->button() == Qt::LeftButton 
         && event->modifiers() == Qt::NoModifier) {
-      selection->setVisible(false); // previous selection should disappear on a left-click
+      // make previous selection disappear on a left-click
+      selection->setVisible(false);
+      emit rangeSelected(0, 0);
+
       isDragging = true;
       dragStart = event->pos();
     }
@@ -129,6 +132,10 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
         (event->modifiers() == Qt::ControlModifier || !selection->isVisible() ) ) {
       // pass on the event when Ctrl is pressed, or when it's just a click (no selection).
       emit waveClicked(event);
+    }
+    if (selection->isVisible()) {
+      auto rect = selection->rect();
+      emit rangeSelected(rect.left(), rect.right());
     }
   }
 }

@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
   connect(shortcutPrevSlice, SIGNAL(activated()), &cutter, SLOT(prevSlice()) );
   connect(shortcutNextSlice, SIGNAL(activated()), &cutter, SLOT(nextSlice()) );
-  connect(shortcutPlay, SIGNAL(activated()), &cutter, SLOT(playSlice()) );
+  connect(shortcutPlay, SIGNAL(activated()), &cutter, SLOT(play()) );
 
   enableExport(false);
   connect(&cutter, SIGNAL(cutsChanged(bool)), this, SLOT(enableExport(bool)) );

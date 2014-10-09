@@ -39,12 +39,16 @@ private:
   void updateSlice(Marker *start, Marker *end);
   void drawSlice(void);
   void updateLoop(void);
+  void playSlice(void);
+  unsigned int selectionStart;
+  unsigned int selectionEnd;
 
 public slots:
   void handleMousePress(QMouseEvent *event);
   void nextSlice(void);
   void prevSlice(void);
-  void playSlice(void);
+  void play(void);
+  void selectRange(unsigned int, unsigned int);
 
 private slots:
   void markerMoved(unsigned int newPos);

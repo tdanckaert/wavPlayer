@@ -61,7 +61,7 @@ public:
 #include "cutter.moc" // necessary to force moc to process this file's Q_OBJECT macros?
 
 Cutter::Cutter(QObject *parent, JackPlayer *p, WaveView *v) : 
-  QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu() {
+  QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu(), selectionStart(0), selectionEnd(0) {
   auto deleteAction = new QAction("delete", &deleteMenu);
   deleteMenu.addAction(deleteAction);
   connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
@@ -71,6 +71,8 @@ void Cutter::setView(WaveView *v) {
   view = v;
   connect(view, SIGNAL(waveClicked(QMouseEvent *)),
           this, SLOT(handleMousePress(QMouseEvent *)));
+  connect(view, SIGNAL(rangeSelected(unsigned int, unsigned int)),
+          this, SLOT(selectRange(unsigned int, unsigned int)));
 }
 
 void Cutter::handleMousePress(QMouseEvent *event) {
@@ -226,6 +228,15 @@ void Cutter::markerMoved(unsigned int pos) {
   }
 }
 
+void Cutter::play() {
+  if(selectionEnd > selectionStart) {
+    // we have a selection, so play that
+    player->play(selectionStart, selectionEnd);
+  } else {
+    playSlice();
+  }
+}
+
 void Cutter::playSlice(void) {
   if(sliceStart && sliceEnd) {
     player->play(sliceStart->pos().x(), sliceEnd->pos().x() );
@@ -356,4 +367,9 @@ void Cutter::exportSamples(const QString& path) const {
     outFile.writef(&wave.samples[start*wave.channels], end-start);
   }
   
+}
+
+void Cutter::selectRange(unsigned int selectionStart, unsigned int selectionEnd) {
+  this->selectionStart = selectionStart;
+  this->selectionEnd = selectionEnd;
 }

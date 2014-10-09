@@ -40,6 +40,7 @@ protected:
 
 signals:
   void waveClicked(QMouseEvent *event);
+  void rangeSelected(unsigned int selectionStart, unsigned int selectionEnd);
 
 public slots:
   void updateIndicator(unsigned int playPos);
