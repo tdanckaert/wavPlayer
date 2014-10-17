@@ -25,6 +25,7 @@ class Cutter :public QObject {
   void exportSamples(const QString& path) const;
 
 private:
+  enum LoopState { None, Selection, Slices};
   class Marker;
   class VerticalLine;
   JackPlayer *player;
@@ -36,6 +37,8 @@ private:
   QMenu deleteMenu;
   std::vector<Marker *> cuts;
   Marker *addCut(unsigned int pos);
+  LoopState loopState;
+
   void updateSlice(Marker *start, Marker *end);
   void drawSlice(void);
   void updateLoop(void);

@@ -133,7 +133,7 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
       // pass on the event when Ctrl is pressed, or when it's just a click (no selection).
       emit waveClicked(event);
     }
-    if (selection->isVisible()) {
+    if (selection->isVisible() && event->modifiers() == Qt::NoModifier) {
       auto rect = selection->rect();
       emit rangeSelected(rect.left(), rect.right());
     }

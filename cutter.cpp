@@ -180,9 +180,24 @@ Cutter::Marker *Cutter::addCut(unsigned int pos) {
 }
 
 void Cutter::updateLoop(void) {
-  if(cuts.size() >= 2) {
-    player->setLoopStart(cuts.front()->pos().x() );
-    player->setLoopEnd(cuts.back()->pos().x() );
+  player->setLoopStart(0);
+  player->setLoopEnd(view->scene()->width());
+
+  switch(loopState) {
+  case Slices:
+    if (cuts.size() >= 2) {
+      player->setLoopStart(cuts.front()->pos().x() );
+      player->setLoopEnd(cuts.back()->pos().x() );
+    } 
+    break;
+  case Selection:
+    if(selectionEnd > selectionStart) {
+      player->setLoopStart(selectionStart);
+      player->setLoopEnd(selectionEnd);
+    }
+    break;
+  default:
+    break;
   }
 }
 
@@ -276,6 +291,14 @@ void Cutter::prevSlice(void) {
 }
 
 void Cutter::loop(void) {
+
+  // update loopState before updateing the loop
+  if(selectionEnd > selectionStart) {
+    loopState = Selection;
+  } else {
+    loopState = Slices;
+  }
+  updateLoop();
   player->loop();
 }
 
@@ -284,7 +307,9 @@ void Cutter::clear(void) {
   emit cutsChanged(false); // there are no slices -> disable export
   slice = nullptr;
   updateSlice(nullptr, nullptr);
+  loopState = None;
   player->setLoopStart(0);
+  qDebug() << __func__ << " set loop end to " << view->scene()->width();
   player->setLoopEnd(view->scene()->width());
 }
 
@@ -372,4 +397,16 @@ void Cutter::exportSamples(const QString& path) const {
 void Cutter::selectRange(unsigned int selectionStart, unsigned int selectionEnd) {
   this->selectionStart = selectionStart;
   this->selectionEnd = selectionEnd;
+
+  switch(loopState) {
+  case Selection:
+    // if we are already looping a selection, stop playing when a new
+    // selection is made (don't automatically loop the new selection)
+    player->stop();
+    loopState = None;
+    break;
+  default:
+    break;
+  }
+  updateLoop();
 }
