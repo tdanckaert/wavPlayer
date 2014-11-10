@@ -7,8 +7,6 @@
 
 #include "spsc_queue.hpp"
 
-#include "wave.h"
-
 #include <jack/jack.h>
 
 enum PlayState {
@@ -54,14 +52,13 @@ private:
     unsigned int end;
     Type type;
 
-  Command(Type t=Stop, int start=0, int end=0) : start(start),
+  Command(Type t=Stop, unsigned int start=0, unsigned int end=0) : start(start),
       end(end),
       type(t) {};
   };
 
 
   PlayState state;
-  bool haveSample;
   std::unique_ptr<Wave> curSample;
   jack_port_t *outputPort1, *outputPort2;
   jack_client_t *client;

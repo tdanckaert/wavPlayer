@@ -24,7 +24,7 @@ using std::endl;
  *
  */
 
-JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
+JackPlayer::JackPlayer(QObject *parent) : QObject(parent), curSample(nullptr)
  {
   client = jack_client_open("wavPlayer", JackNullOption, 0 , 0);
   if (client == nullptr) {
@@ -45,7 +45,6 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
   jack_set_process_callback( client, process_wrap, this );
 
   state = STOPPED;
-  haveSample = false;
 
   startTimer(20);
 
@@ -73,9 +72,8 @@ int JackPlayer::process(jack_nframes_t nframes) {
   while(inQueue.pop(newSample)) {
     // if we have a sample, make sure we are able to push it onto the
     // outQueue so it gets cleaned up in the other thread:
-    if (!haveSample || outQueue.push(std::move(curSample) ) ) {
+    if (curSample != nullptr || outQueue.push(std::move(curSample) ) ) {
         curSample = std::move(newSample);
-        haveSample = true;
         reset();
     }
   }
@@ -109,14 +107,14 @@ void JackPlayer::stop(void) {
 }
 
 void JackPlayer::setLoopStart(unsigned int start) {
-  if(haveSample) {
+  if (curSample != nullptr) {
     loopStart = start*(curSample->channels);
     qDebug() << __func__ << loopStart;
   }
 }
 
 void JackPlayer::setLoopEnd(unsigned int end) {
-  if(haveSample) {
+  if (curSample != nullptr) {
     loopEnd = end*(curSample->channels);
     qDebug() << __func__ << loopEnd;
   }
@@ -130,7 +128,7 @@ void JackPlayer::sendCommand(const Command &e) {
 
 /* */
 inline void JackPlayer::reset(void) {
-  assert(haveSample);
+  assert (curSample != nullptr);
   playbackIndex = curSample->samples.size();
   playEnd = curSample->samples.size();
 }
@@ -140,7 +138,7 @@ void JackPlayer::readCommands(void) {
   Command e;
   while (eventQueue.pop(e) ) {
 
-    if (!haveSample) {
+    if (curSample == nullptr) {
       // If no sample is loaded, we just empty the buffer and ignore the events
       continue;
     }
@@ -204,7 +202,7 @@ void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
     qDebug() << __func__ << ": erasing sample";
  }
 
-  if(haveSample)
+  if (curSample != nullptr)
     emit positionChanged(playbackIndex/curSample->channels);
 
 }
