@@ -10,7 +10,7 @@
 
 #include <sndfile.hh>
 
-using std::set;
+using std::unique_ptr;
 using std::cerr;
 using std::endl;
 
@@ -24,24 +24,6 @@ using std::endl;
  *
  */
 
-class JackPlayer::Command {
-public:
-  enum Type {
-    Play,
-    Loop,
-    Pause,
-    Stop
-  };
-
-  unsigned int start;
-  unsigned int end;
-  Type type;
-
-  Command(Type t=Stop, int start=0, int end=0) : start(start),
-                                                 end(end),
-                                                 type(t) {};
-};
-
 JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
  {
   client = jack_client_open("wavPlayer", JackNullOption, 0 , 0);
@@ -49,14 +31,6 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
     cerr << __func__ << " client failed!" << endl;
   }
 
-  eventBuffer = jack_ringbuffer_create(sizeof(Command)*10);
-  jack_ringbuffer_mlock(eventBuffer);
-
-  inQueue = jack_ringbuffer_create(sizeof(set<Wave>::iterator)*10);
-  jack_ringbuffer_mlock(inQueue);
-  outQueue = jack_ringbuffer_create(sizeof(set<Wave>::iterator)*10);
-  jack_ringbuffer_mlock(outQueue);
-  
   outputPort1 = jack_port_register ( client,
                                     "output1",
                                     JACK_DEFAULT_AUDIO_TYPE,
@@ -84,9 +58,6 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent)
 
 JackPlayer::~JackPlayer(void) {
   jack_deactivate(client);
-  jack_ringbuffer_free(eventBuffer);
-  jack_ringbuffer_free(inQueue);
-  jack_ringbuffer_free(outQueue);
   jack_client_close(client);
   qDebug() << __func__ << "closed client";
 }
@@ -98,16 +69,15 @@ int JackPlayer::process_wrap(jack_nframes_t nframes, void *player) {
 int JackPlayer::process(jack_nframes_t nframes) {
 
   // queue new sample if needed
-  while(jack_ringbuffer_read_space(inQueue) >= sizeof(set<Wave>::iterator) ) {
-    set<Wave>::iterator i;
-    jack_ringbuffer_read(inQueue, (char*)&i, sizeof(i) );
-    if(haveSample && curSample != i 
-       && jack_ringbuffer_write_space(outQueue) >= sizeof(curSample)) {
-      jack_ringbuffer_write(outQueue, (char*)&curSample, sizeof(curSample));
+  unique_ptr<Wave> newSample;
+  while(inQueue.pop(newSample)) {
+    // if we have a sample, make sure we are able to push it onto the
+    // outQueue so it gets cleaned up in the other thread:
+    if (!haveSample || outQueue.push(std::move(curSample) ) ) {
+        curSample = std::move(newSample);
+        haveSample = true;
+        reset();
     }
-    curSample = i;
-    haveSample = true;
-    reset();
   }
 
   // read and process incoming events (play/pause/loop/...)
@@ -153,10 +123,8 @@ void JackPlayer::setLoopEnd(unsigned int end) {
 }
 
 void JackPlayer::sendCommand(const Command &e) {
-  if(jack_ringbuffer_write_space(eventBuffer) >= sizeof(Command)) {
-    jack_ringbuffer_write(eventBuffer, (const char*)&e, sizeof(Command));
-  } else {
-    cerr << "Can't write to eventBuffer" << endl;
+  if (!eventQueue.push(e) ) {
+    cerr << "Can't write to eventQueue" << endl;
   }
 }
 
@@ -169,9 +137,8 @@ inline void JackPlayer::reset(void) {
 
 /* Read all queued events from eventBuffer. */
 void JackPlayer::readCommands(void) {
-  while(jack_ringbuffer_read_space(eventBuffer) >= sizeof(Command) ) {
-    Command e;
-    jack_ringbuffer_read( eventBuffer, (char*)&e, sizeof(Command) );
+  Command e;
+  while (eventQueue.pop(e) ) {
 
     if (!haveSample) {
       // If no sample is loaded, we just empty the buffer and ignore the events
@@ -231,11 +198,10 @@ void JackPlayer::readCommands(void) {
 }
 
 void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
-  set<Wave>::iterator i;
-  while(jack_ringbuffer_read_space(outQueue) >= sizeof(i) ) {
-    jack_ringbuffer_read(outQueue, (char*)&i, sizeof(i) );
+  unique_ptr<Wave> pOut;
+  while (outQueue.pop(pOut) ) {
+    // pop outQueue until empty...
     qDebug() << __func__ << ": erasing sample";
-    samples.erase(i);
  }
 
   if(haveSample)
@@ -244,12 +210,11 @@ void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
 }
 
 const Wave* JackPlayer::loadWave(Wave wave) {
-  auto iWave = samples.insert(wave);
-  if(jack_ringbuffer_write_space(inQueue) >= sizeof(iWave.first)) {
-    jack_ringbuffer_write(inQueue, (const char *)&iWave.first, sizeof(iWave.first));
-    return &(*iWave.first);
+  auto pWave = unique_ptr<Wave>(new Wave(std::move(wave)));
+  Wave *result = pWave.get();
+  if (inQueue.push(std::move(pWave) ) ) {
+    return result;
   } else {
-    samples.erase(iWave.first);
     return nullptr;
   }
 }
