@@ -135,7 +135,15 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
     }
     if (selection->isVisible() && event->modifiers() == Qt::NoModifier) {
       auto rect = selection->rect();
-      emit rangeSelected(rect.left(), rect.right());
+      if (rect.right() > scene()->width() ) {
+        rect.setRight(scene()->width() );
+        selection->setRect(rect);
+      }
+      if (rect.left() < 0 ) {
+        rect.setLeft(0);
+        selection->setRect(rect);
+      }
+      emit rangeSelected(rect.left(), rect.right() );
     }
   }
 }
