@@ -51,7 +51,7 @@ public:
       for(size_t i=0; i<done/sizeof(buffer[0]); ++i) {
         result.push_back(buffer[i]);
       }
-    } while (err==MPG123_OK);
+    } while (err==MPG123_OK || err== MPG123_NEED_MORE);
 
     if(err != MPG123_DONE)
       throw std::runtime_error(string("Warning, mpg123 decoding ended prematurely: ") +
