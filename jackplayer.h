@@ -5,7 +5,9 @@
 
 #include <QObject>
 
+#ifndef Q_MOC_RUN // moc can't handle some boost macro's
 #include "spsc_queue.hpp"
+#endif
 
 #include <jack/jack.h>
 
