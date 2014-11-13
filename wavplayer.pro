@@ -12,6 +12,8 @@ CONFIG(release, debug|release) {
     DEFINES += QT_NO_DEBUG_OUTPUT
 }
 
+include( ./config.pri )
+
 TARGET = wavplayer
 TEMPLATE = app
 
