@@ -7,9 +7,9 @@ class QString;
 
 class Wave {
   
-public:
-  Wave(std::vector<float> samples, unsigned int channels) :
-    channels(channels),  samples(samples) {}
+ public:
+ Wave(std::vector<float> samples, unsigned int channels, unsigned int samplerate) :
+  channels(channels), samplerate(samplerate), samples(samples) {};
   
   bool operator<(const Wave& rhs) const 
   {
@@ -19,6 +19,7 @@ public:
   static Wave openSoundFile(const QString& fileName);
   
   const unsigned int channels;
+  const unsigned int samplerate;
   const std::vector<float> samples;
 };
 

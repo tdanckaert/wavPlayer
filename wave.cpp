@@ -59,7 +59,9 @@ public:
     return result;
   };
 
-  int getChannels(void) { return channels; };
+  int getChannels() { return channels; };
+
+  int getSamplerate() { return rate; };
 
 private:
   mpg123_handle *mh;
@@ -76,7 +78,7 @@ Wave Wave::openSoundFile(const QString& fileName) {
 
   if(!size) { // if libsndfile reports size 0, try opening as mp3
     Mpg123Handle mp3(fileName);
-    return Wave(mp3.read(), mp3.getChannels());
+    return Wave(mp3.read(), mp3.getChannels(), mp3.getSamplerate());
   } else { // open using libsndfile
     // get some more info of the sample
     int channels = fileHandle.channels();
@@ -92,6 +94,6 @@ Wave Wave::openSoundFile(const QString& fileName) {
       samplerate << " with " << size << " samples, so its duration is " <<
       size / samplerate << " seconds long.";
     
-    return Wave(std::move(samples), channels);
+    return Wave(std::move(samples), channels, samplerate);
   }
 }

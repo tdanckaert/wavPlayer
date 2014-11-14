@@ -2,15 +2,19 @@
 #include "wave.h"
 
 #include <vector>
-#include <iostream>
+
 #include <assert.h>
 
 #include <QTimer>
 #include <QDebug>
 
 #include <sndfile.hh>
+#include <samplerate.h>
 
+using std::vector;
 using std::unique_ptr;
+using std::pair;
+using std::make_pair;
 using std::cerr;
 using std::endl;
 
@@ -44,6 +48,8 @@ JackPlayer::JackPlayer(QObject *parent) : QObject(parent), curSample(nullptr)
 
   jack_set_process_callback( client, process_wrap, this );
 
+  samplerate = jack_get_sample_rate(client);
+
   state = STOPPED;
 
   startTimer(20);
@@ -68,12 +74,13 @@ int JackPlayer::process_wrap(jack_nframes_t nframes, void *player) {
 int JackPlayer::process(jack_nframes_t nframes) {
 
   // queue new sample if needed
-  unique_ptr<Wave> newSample;
+  pair<unique_ptr<Wave>,unique_ptr<Wave> > newSample;
   while(inQueue.pop(newSample)) {
     // if we have a sample, make sure we are able to push it onto the
     // outQueue so it gets cleaned up in the other thread:
-    if (curSample != nullptr || outQueue.push(std::move(curSample) ) ) {
-        curSample = std::move(newSample);
+    if (curSample != nullptr || outQueue.push(make_pair(std::move(curSample), std::move(curSample2)) ) ) {
+        curSample = std::move(newSample.first);
+curSample2 = std::move(newSample.second);
         reset();
     }
   }
@@ -196,7 +203,7 @@ void JackPlayer::readCommands(void) {
 }
 
 void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
-  unique_ptr<Wave> pOut;
+  pair<unique_ptr<Wave>, unique_ptr<Wave> > pOut;
   while (outQueue.pop(pOut) ) {
     // pop outQueue until empty...
     qDebug() << __func__ << ": erasing sample";
@@ -210,7 +217,30 @@ void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
 const Wave* JackPlayer::loadWave(Wave wave) {
   auto pWave = unique_ptr<Wave>(new Wave(std::move(wave)));
   Wave *result = pWave.get();
-  if (inQueue.push(std::move(pWave) ) ) {
+
+  unique_ptr<Wave> pWave2;
+
+  if(samplerate != pWave->samplerate) {
+    double src_ratio = static_cast<double>(samplerate)/pWave->samplerate;
+    vector<float> resampled( 1 + static_cast<size_t>(pWave->samples.size() * src_ratio) );
+
+    SRC_DATA data;
+    data.data_in = const_cast<float *>(pWave->samples.data()); // cast necessary for libsamplerate
+    data.data_out = resampled.data();
+    data.input_frames = pWave->samples.size()/pWave->channels;
+    data.output_frames = resampled.size()/pWave->channels;
+    data.src_ratio = src_ratio;
+
+    auto retval = src_simple(&data, SRC_SINC_MEDIUM_QUALITY, pWave->channels);
+    // TODO: check retval!   
+
+    resampled.resize(data.output_frames_gen * pWave->channels);
+
+    pWave2 = std::move(pWave);
+    pWave = unique_ptr<Wave>(new Wave(resampled, pWave2->channels, pWave2->samplerate));
+  }
+
+  if (inQueue.push(make_pair(std::move(pWave), std::move(pWave2) ) ) ) {
     return result;
   } else {
     return nullptr;
