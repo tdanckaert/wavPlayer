@@ -2,6 +2,7 @@
 #define JACKPLAYER_H
 
 #include <memory>
+#include <array>
 
 #include <QObject>
 
@@ -11,6 +12,8 @@
 
 #include <jack/jack.h>
 
+#include <samplerate.h>
+
 enum PlayState {
   PLAYING,
   LOOPING,
@@ -19,7 +22,14 @@ enum PlayState {
 
 class Wave;
 
-typedef boost::lockfree::spsc_queue<std::pair<std::unique_ptr<Wave>, std::unique_ptr<Wave> >, boost::lockfree::capacity<10> > spsc_wave_queue;
+struct Free_SRC_STATE {
+public:
+  void operator() (SRC_STATE *p) { src_delete(p); }
+};
+
+typedef std::unique_ptr<SRC_STATE, Free_SRC_STATE> SRC_STATE_ptr;
+typedef boost::lockfree::spsc_queue<std::pair<std::unique_ptr<Wave>, SRC_STATE_ptr>, boost::lockfree::capacity<10> > spsc_wave_queue;
+
 
 class JackPlayer : public QObject {
   Q_OBJECT
@@ -62,12 +72,13 @@ private:
 
   PlayState state;
   std::unique_ptr<Wave> curSample;
-  std::unique_ptr<Wave> curSample2;
+  SRC_STATE_ptr resampler;
   jack_port_t *outputPort1, *outputPort2;
   jack_client_t *client;
   unsigned int samplerate;
 
   unsigned int playbackIndex; /* 0 to curSample->size() */
+  unsigned int inputIndex;
   unsigned int loopStart; /* 0 to curSample->size() */
   unsigned int loopEnd;
   unsigned int playEnd;
@@ -76,6 +87,8 @@ private:
 
   spsc_wave_queue inQueue; // samples in
   spsc_wave_queue outQueue; // samples out, can be freed
+
+  std::array<float, 2048> resampleBuffer;
 
   static int process_wrap(jack_nframes_t, void *);
   int process(jack_nframes_t nframes);

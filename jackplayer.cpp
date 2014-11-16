@@ -1,8 +1,6 @@
 #include "jackplayer.h"
 #include "wave.h"
 
-#include <vector>
-
 #include <assert.h>
 
 #include <QTimer>
@@ -11,7 +9,11 @@
 #include <sndfile.hh>
 #include <samplerate.h>
 
-using std::vector;
+#include <algorithm>
+
+#include <iostream>
+
+using std::array;
 using std::unique_ptr;
 using std::pair;
 using std::make_pair;
@@ -28,23 +30,23 @@ using std::endl;
  *
  */
 
-JackPlayer::JackPlayer(QObject *parent) : QObject(parent), curSample(nullptr)
+JackPlayer::JackPlayer(QObject *parent) : QObject(parent), curSample(nullptr), resampler(nullptr)
  {
   client = jack_client_open("wavPlayer", JackNullOption, 0 , 0);
   if (client == nullptr) {
     cerr << __func__ << " client failed!" << endl;
   }
 
-  outputPort1 = jack_port_register ( client,
+  outputPort1 = jack_port_register (client,
                                     "output1",
                                     JACK_DEFAULT_AUDIO_TYPE,
                                     JackPortIsOutput,
-                                    0 );
-  outputPort2 = jack_port_register ( client,
+                                    0);
+  outputPort2 = jack_port_register (client,
                                     "output2",
                                     JACK_DEFAULT_AUDIO_TYPE,
                                     JackPortIsOutput,
-                                    0 );
+                                    0);
 
   jack_set_process_callback( client, process_wrap, this );
 
@@ -74,13 +76,13 @@ int JackPlayer::process_wrap(jack_nframes_t nframes, void *player) {
 int JackPlayer::process(jack_nframes_t nframes) {
 
   // queue new sample if needed
-  pair<unique_ptr<Wave>,unique_ptr<Wave> > newSample;
+  pair<unique_ptr<Wave>, SRC_STATE_ptr > newSample;
   while(inQueue.pop(newSample)) {
     // if we have a sample, make sure we are able to push it onto the
     // outQueue so it gets cleaned up in the other thread:
-    if (curSample != nullptr || outQueue.push(make_pair(std::move(curSample), std::move(curSample2)) ) ) {
+    if (curSample != nullptr || outQueue.push(make_pair(std::move(curSample), std::move(resampler)) ) ) {
         curSample = std::move(newSample.first);
-curSample2 = std::move(newSample.second);
+        resampler = std::move(newSample.second);
         reset();
     }
   }
@@ -165,8 +167,10 @@ void JackPlayer::readCommands(void) {
     case Command::Play:
       reset();
       state = PLAYING;
-      playbackIndex = e.start;
+      inputIndex = playbackIndex = e.start;
       playEnd = e.end ? e.end : curSample->samples.size();
+      if (resampler)
+        src_reset(resampler.get() );
       qDebug() << "Play: " << playbackIndex << playEnd;
       break;
     case Command::Loop:
@@ -174,10 +178,12 @@ void JackPlayer::readCommands(void) {
       if(e.start) {
         loopStart = e.start;
       }
-      playbackIndex = loopStart;
+      inputIndex = playbackIndex = loopStart;
       if (e.end) {
         loopEnd = e.end;
       }
+      if (resampler)
+        src_reset(resampler.get() );
       qDebug() << "Loop: " << playbackIndex << playEnd;
       break;
     case Command::Pause:
@@ -203,7 +209,7 @@ void JackPlayer::readCommands(void) {
 }
 
 void JackPlayer::timerEvent(QTimerEvent *event __attribute__ ((unused)) ) {
-  pair<unique_ptr<Wave>, unique_ptr<Wave> > pOut;
+  pair<unique_ptr<Wave>, SRC_STATE_ptr> pOut;
   while (outQueue.pop(pOut) ) {
     // pop outQueue until empty...
     qDebug() << __func__ << ": erasing sample";
@@ -218,29 +224,15 @@ const Wave* JackPlayer::loadWave(Wave wave) {
   auto pWave = unique_ptr<Wave>(new Wave(std::move(wave)));
   Wave *result = pWave.get();
 
-  unique_ptr<Wave> pWave2;
-
-  if(samplerate != pWave->samplerate) {
-    double src_ratio = static_cast<double>(samplerate)/pWave->samplerate;
-    vector<float> resampled( 1 + static_cast<size_t>(pWave->samples.size() * src_ratio) );
-
-    SRC_DATA data;
-    data.data_in = const_cast<float *>(pWave->samples.data()); // cast necessary for libsamplerate
-    data.data_out = resampled.data();
-    data.input_frames = pWave->samples.size()/pWave->channels;
-    data.output_frames = resampled.size()/pWave->channels;
-    data.src_ratio = src_ratio;
-
-    auto retval = src_simple(&data, SRC_SINC_MEDIUM_QUALITY, pWave->channels);
-    // TODO: check retval!   
-
-    resampled.resize(data.output_frames_gen * pWave->channels);
-
-    pWave2 = std::move(pWave);
-    pWave = unique_ptr<Wave>(new Wave(resampled, pWave2->channels, pWave2->samplerate));
+  int error = 0;
+  auto pSrc = (samplerate != pWave->samplerate) 
+    ? SRC_STATE_ptr(src_new(SRC_SINC_MEDIUM_QUALITY, pWave->channels, &error)) 
+    : SRC_STATE_ptr(nullptr);
+  if (error) {
+    throw std::runtime_error(src_strerror(error) );
   }
 
-  if (inQueue.push(make_pair(std::move(pWave), std::move(pWave2) ) ) ) {
+  if (inQueue.push(make_pair(std::move(pWave), std::move(pSrc) ) ) ) {
     return result;
   } else {
     return nullptr;
@@ -250,32 +242,86 @@ const Wave* JackPlayer::loadWave(Wave wave) {
 void JackPlayer::writeBuffer(jack_nframes_t nframes) {
   float* outputBuffer1= static_cast<float*>(jack_port_get_buffer(outputPort1, nframes));
   float* outputBuffer2= static_cast<float*>(jack_port_get_buffer(outputPort2, nframes));
-  
-  for (jack_nframes_t i = 0; i < nframes; ++i) {
-    // Check if playbackIndex is past the end.  When in a loop: return to start, if not: stop.
-    if (state == PLAYING && playbackIndex >= playEnd ) {
-      state = STOPPED;
-    } else if (state == LOOPING && playbackIndex >= loopEnd) {
-      if(loopStart < curSample->samples.size()) {
-        playbackIndex = loopStart;
-      } else {
-        state = STOPPED;
-      }
-    }
 
-    if (state == PLAYING || state == LOOPING ) {
-      outputBuffer1[i] = curSample->samples[playbackIndex];
-      if (curSample->channels >=2) {
-        outputBuffer2[i] = curSample->samples[++playbackIndex];
-        playbackIndex += (curSample->channels -1);
-      } else {
-        outputBuffer2[i] = curSample->samples[playbackIndex];
-        ++playbackIndex;
+  unsigned int frames_gen = 0;
+  // in each iteration, we fill the outputBuffers until we have written 'nframes' frames, or until we have reached playEnd/loopEnd
+  do {
+    if (state == STOPPED) {
+      for(; frames_gen < nframes; ++frames_gen) {
+        outputBuffer2[frames_gen] = outputBuffer1[frames_gen] = 0.;
       }
-    } else {
-      outputBuffer2[i] = outputBuffer1[i] = 0.;
+    } else { // state == PLAYING or LOOPING
+      const auto inputLeft = ((state == PLAYING) ? playEnd - playbackIndex : loopEnd - playbackIndex) / curSample->channels;
+      const auto src_ratio = static_cast<double>(samplerate)/curSample->samplerate;
+      const auto outputLeft = static_cast<unsigned long>(0.5 + inputLeft * src_ratio);
+
+      if (resampler == nullptr) {
+        // no resampling: directly copy data to outputBuffers
+        auto maxFrames = std::min(frames_gen + inputLeft, nframes);
+        for(; frames_gen < maxFrames; ++frames_gen) {
+          outputBuffer1[frames_gen] = curSample->samples[playbackIndex];
+          if (curSample->channels >=2) {
+            outputBuffer2[frames_gen] = curSample->samples[++playbackIndex];
+            playbackIndex += (curSample->channels -1);
+          } else {
+            outputBuffer2[frames_gen] = curSample->samples[playbackIndex];
+            ++playbackIndex;
+          }
+        }
+      }  else {
+        // resampling
+        SRC_DATA src_data;
+        src_data.data_in = const_cast<float *>(&curSample->samples[inputIndex]);
+        src_data.data_out = resampleBuffer.data();
+        src_data.input_frames = (curSample->samples.size()-playbackIndex)/curSample->channels;
+        // number of output frames we can generate before reaching
+        // playEnd/loopEnd, or reaching the end of resampleBuffer
+        auto maxOutput =  std::min<unsigned long>( { outputLeft, 
+              (nframes - frames_gen),
+              (resampleBuffer.size()/curSample->channels) } );
+        src_data.output_frames = maxOutput;
+        src_data.src_ratio = src_ratio;
+        src_data.end_of_input = 0;
+
+        int error = src_process(resampler.get(), &src_data);
+
+        inputIndex += curSample->channels * src_data.input_frames_used;
+        playbackIndex += curSample->channels * static_cast<unsigned int>(0.5 + src_data.output_frames_gen / src_ratio);
+
+        for(unsigned int i=0; i < src_data.output_frames_gen*curSample->channels;) {
+          outputBuffer1[frames_gen] = resampleBuffer[i];
+          if (curSample->channels >=2) {
+            outputBuffer2[frames_gen] = resampleBuffer[i+1];
+          } else {
+            outputBuffer2[frames_gen] = resampleBuffer[i];
+          }
+          i += (curSample->channels);
+          ++frames_gen;
+        }
+
+        if (error) {
+          throw std::runtime_error(src_strerror(error) );
+        }
+      }
+      
+      if (!inputLeft || !outputLeft) {
+        switch (state) {
+        case PLAYING:
+          state = STOPPED;
+          break;
+        case LOOPING:
+          if(loopStart < curSample->samples.size()) {
+            inputIndex = playbackIndex = loopStart;
+            if (resampler)
+              src_reset(resampler.get());
+          }
+          break;
+        default:
+          break;
+        }
+      }
     }
-  }
+  } while (frames_gen < nframes);
 }
 
 const Wave& JackPlayer::getCurWave(void) const {
