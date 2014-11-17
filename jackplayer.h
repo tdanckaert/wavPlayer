@@ -77,11 +77,11 @@ private:
   jack_client_t *client;
   unsigned int samplerate;
 
-  unsigned int playbackIndex; /* 0 to curSample->size() */
-  unsigned int inputIndex;
-  unsigned int loopStart; /* 0 to curSample->size() */
-  unsigned int loopEnd;
-  unsigned int playEnd;
+  unsigned long playbackIndex; /* 0 to curSample->size() */
+  unsigned long inputIndex;
+  unsigned long loopStart; /* 0 to curSample->size() */
+  unsigned long loopEnd;
+  unsigned long playEnd;
 
   boost::lockfree::spsc_queue<Command, boost::lockfree::capacity<10> > eventQueue;
 
