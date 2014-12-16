@@ -11,11 +11,6 @@ class Wave {
  Wave(std::vector<float> samples, unsigned int channels, unsigned int samplerate) :
   channels(channels), samplerate(samplerate), samples(samples) {};
   
-  bool operator<(const Wave& rhs) const 
-  {
-    return samples < rhs.samples;
-  };
-
   static Wave openSoundFile(const QString& fileName);
   
   const unsigned int channels;
