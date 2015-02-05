@@ -11,11 +11,8 @@ class Wave {
  Wave(std::vector<float> samples, unsigned int channels, unsigned int samplerate) :
    channels(channels), samplerate(samplerate), samples(std::move(samples) ) {};
   
-  static Wave openSoundFile(const QString& fileName);
-  
   const unsigned int channels;
   const unsigned int samplerate;
   const std::vector<float> samples;
 };
-
 #endif

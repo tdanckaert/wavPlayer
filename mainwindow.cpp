@@ -64,7 +64,7 @@ void MainWindow::on_actionOpen_triggered()
   auto fileName = QFileDialog::getOpenFileName();
   if (!fileName.isEmpty()) {
     try {
-      auto pWave = player.loadWave(Wave::openSoundFile(fileName));
+      auto pWave = player.loadWave(soundFileHandler.read(fileName));
       ui->waveOverview->drawWave(pWave);
       ui->zoomView->drawWave(pWave);
       cutter.clear();

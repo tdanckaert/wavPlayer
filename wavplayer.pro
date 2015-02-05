@@ -24,13 +24,14 @@ LIBS += -ljack -lsndfile -lsamplerate -lmpg123
 SOURCES += main.cpp\
         mainwindow.cpp \
     waveview.cpp \
-    wave.cpp \
+    soundfilehandler.cpp \
     cutter.cpp \
     jackplayer.cpp
 
 HEADERS  += mainwindow.h \
     waveview.h \
     wave.h \
+    soundfilehandler.h \
     cutter.h \
     jackplayer.h
 

@@ -5,6 +5,7 @@
 
 #include "jackplayer.h"
 #include "cutter.h"
+#include "soundfilehandler.h"
 
 namespace Ui {
 class MainWindow;
@@ -26,6 +27,7 @@ private:
   Ui::MainWindow *ui;
   JackPlayer player;
   Cutter cutter;
+  SoundFileHandler soundFileHandler;               
 
 private slots:
   void on_actionQuit_triggered();
