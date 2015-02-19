@@ -64,7 +64,11 @@ Cutter::Cutter(QObject *parent, JackPlayer *p, WaveView *v) :
   QObject(parent), player(p), view(v), slice(nullptr), sliceStart(nullptr), sliceEnd(nullptr), toDelete(nullptr), deleteMenu(), selectionStart(0), selectionEnd(0) {
   auto deleteAction = new QAction("delete", &deleteMenu);
   deleteMenu.addAction(deleteAction);
-  connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()));
+  connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteMarker()) );
+
+  auto cutAction = new QAction("add cut", &addMenu);
+  addMenu.addAction(cutAction);
+  connect(cutAction, SIGNAL(triggered()), this, SLOT(addCut()) );
 }
 
 void Cutter::setView(WaveView *v) {
@@ -86,32 +90,12 @@ void Cutter::handleMousePress(QMouseEvent *event) {
   if (clickedMarker && button == Qt::RightButton) {
     toDelete = static_cast<Cutter::Marker*>(clickedMarker);
     deleteMenu.popup(QCursor::pos());
+  } else if (button == Qt::RightButton) { // right click: show context menu
+    addMenuPos = scenePos.x();
+    addMenu.popup(QCursor::pos());
   } else if (button == Qt::LeftButton) {
     if(event->modifiers() & Qt::ControlModifier) { // CTRL-click: add cut
-      if(scenePos.x() < 0) {
-        // when clicked left of the wave, add a cut at the left border:
-        scenePos.setX(0);
-      } else if (scenePos.x() > view->scene()->width()) {
-        // when clicked right of the wave, add a cut at the right:
-        scenePos.setX(view->scene()->width());
-      }
-      // if we already have a cut at that position, don't add another
-      if ( std::find_if(cuts.begin(), cuts.end(),
-                        [scenePos] (decltype(cuts[0]) a)
-                        { return (a->pos().x() == scenePos.x() );} ) != cuts.end() ) {
-        return;
-      }
-
-      auto newCut = addCut(scenePos.x() );
-      connect(static_cast<Marker *>(newCut), SIGNAL(positionChanged(unsigned int)),
-              this, SLOT(markerMoved(unsigned int)) );
-      if (iAfter != cuts.end()) {
-        cuts.insert(iAfter, newCut);
-      } else {
-        cuts.push_back(newCut);
-      }
-      emit cutsChanged(cuts.size() > 1);
-      updateLoop();
+      addCut(scenePos.x());
     } else if (!clickedMarker 
                && iAfter != cuts.begin() && iAfter != cuts.end()) { // left click inside a slice
       updateSlice(*(iAfter-1),*iAfter);
@@ -140,7 +124,40 @@ void Cutter::drawSlice(void) {
   }
 }
 
-Cutter::Marker *Cutter::addCut(unsigned int pos) {
+void Cutter::addCut() {
+  addCut(addMenuPos);
+  addMenuPos = 0;
+}
+
+void Cutter::addCut(qreal scene_x) {
+  if(scene_x < 0) {
+    // when clicked left of the wave, add a cut at the left border:
+    scene_x = 0;
+  } else if (scene_x > view->scene()->width()) {
+    // when clicked right of the wave, add a cut at the right:
+    scene_x = view->scene()->width();
+  }
+  auto i_insert = std::find_if(cuts.begin(), cuts.end(),
+                               [scene_x] (decltype(cuts[0]) a)
+                               { return (a->pos().x() >= scene_x );} );
+  // if we already have a cut at that position, don't add another
+  if ( i_insert != cuts.end() 
+       && (*i_insert)->pos().x() == scene_x)
+    return;
+  
+  auto newMarker = addMarker(scene_x);
+  connect(static_cast<Marker *>(newMarker), SIGNAL(positionChanged(unsigned int)),
+          this, SLOT(markerMoved(unsigned int)) );
+  if (i_insert != cuts.end()) {
+    cuts.insert(i_insert, newMarker);
+  } else {
+    cuts.push_back(newMarker);
+  }
+  emit cutsChanged(cuts.size() > 1);
+  updateLoop();
+}
+
+Cutter::Marker *Cutter::addMarker(unsigned int pos) {
   QPen pen;
   pen.setColor(Qt::red);
   pen.setCosmetic(true);
@@ -247,8 +264,10 @@ void Cutter::play() {
   if(selectionEnd > selectionStart) {
     // we have a selection, so play that
     player->play(selectionStart, selectionEnd);
-  } else {
+  } else if (sliceStart && sliceEnd) {
     playSlice();
+  } else {
+    player->play();
   }
 }
 

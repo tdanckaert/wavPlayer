@@ -99,9 +99,11 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
   QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
   if (wave) {
-    if (markerAt(event->pos() ) ) {
-      emit waveClicked(event);
-    } else if (event->button() == Qt::LeftButton 
+    // left mouse button press event signals start of selection
+    // (unless a marker is selected, in which case we want to move the
+    // marker and not make a selection
+    if (!markerAt(event->pos())
+        && event->button() == Qt::LeftButton 
         && event->modifiers() == Qt::NoModifier) {
       // make previous selection disappear on a left-click
       selection->setVisible(false);
@@ -128,12 +130,11 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
     isDragging = false;
     qDebug() << __func__ << ": x() = " << event->x() 
              << ", " << " dragStart.x() = " << dragStart.x();
-    if (wave && 
-        (event->modifiers() == Qt::ControlModifier || !selection->isVisible() ) ) {
-      // pass on the event when Ctrl is pressed, or when it's just a click (no selection).
-      emit waveClicked(event);
-    }
-    if (selection->isVisible() && event->modifiers() == Qt::NoModifier) {
+
+    // if we are making a selection and the left mouse button is
+    // released, this is the end of making the selection
+    if (selection && selection->isVisible()
+        && event->modifiers() == Qt::NoModifier) {
       auto rect = selection->rect();
       if (rect.right() > scene()->width() ) {
         rect.setRight(scene()->width() );
@@ -144,7 +145,11 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
         selection->setRect(rect);
       }
       emit rangeSelected(rect.left(), rect.right() );
+      return;
     }
+  }
+  if (wave) {
+    emit waveClicked(event);
   }
 }
 

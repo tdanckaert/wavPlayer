@@ -89,7 +89,7 @@ void MainWindow::on_actionLoop_triggered()
 
 void MainWindow::on_actionPlay_triggered()
 {
-  player.play();
+  cutter.play();
 }
 
 void MainWindow::on_actionPause_triggered()

@@ -35,8 +35,10 @@ private:
   Marker *sliceEnd;
   Marker *toDelete;
   QMenu deleteMenu;
+  QMenu addMenu;
   std::vector<Marker *> cuts;
-  Marker *addCut(unsigned int pos);
+  Marker *addMarker(unsigned int pos);
+  void addCut(qreal scene_x);
   LoopState loopState;
 
   void updateSlice(Marker *start, Marker *end);
@@ -45,6 +47,7 @@ private:
   void playSlice(void);
   unsigned int selectionStart;
   unsigned int selectionEnd;
+  qreal addMenuPos;
 
 public slots:
   void handleMousePress(QMouseEvent *event);
@@ -52,6 +55,7 @@ public slots:
   void prevSlice(void);
   void play(void);
   void selectRange(unsigned int, unsigned int);
+  void addCut();
 
 private slots:
   void markerMoved(unsigned int newPos);
