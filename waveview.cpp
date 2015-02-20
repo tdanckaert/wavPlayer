@@ -89,8 +89,20 @@ void WaveView::wheelEvent(QWheelEvent *event) {
       auto scaleFact = event->delta() > 0
         ? 1.10 : 1/1.10;
       // don't zoom in further if zoomLevel is already smaller than 1
-      if (scaleFact < 1.0 || zoomLevel > 1.0) 
-        setTransform(transform() * QTransform::fromScale(scaleFact,1.0));
+      if (scaleFact < 1.0 || zoomLevel > 1.0) {
+        // we want to scale, keeping the point under the current mouse
+        // position at the same position (in view coordinates).
+        // QGraphicsView::setTransform() will keep the center of
+        // viewport in the same place -> scale and scroll to a new
+        // position to achieve the effect we want
+
+        setTransform(transform() * QTransform::fromScale(scaleFact,1.0) );
+
+        auto delta_x = 0.5*width() - event->x(); // distance from center before transformation
+        // after rescaling, the point below the mouse position is at the position
+        // center - scaleFact * delta_x
+        // put it back at a distance delta_x from the center:
+        centerOn(mapToScene(width()-event->x() - scaleFact*delta_x, 0));
     }
   }
 }
