@@ -111,6 +111,8 @@ void WaveView::mousePressEvent(QMouseEvent *event) {
 
       isDragging = true;
       dragStart = event->pos();
+    } else if (event->button() == Qt::RightButton) {
+      emit waveClicked(event);
     }
   }
 }
@@ -145,11 +147,11 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
         selection->setRect(rect);
       }
       emit rangeSelected(rect.left(), rect.right() );
-      return;
+      return; // for selection, only emit rangeSelected
     }
-  }
-  if (wave) {
-    emit waveClicked(event);
+    if (wave) {
+      emit waveClicked(event);
+    }
   }
 }
 
