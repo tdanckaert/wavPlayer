@@ -123,3 +123,18 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
     QWidget::keyReleaseEvent(event);
   }
 }
+
+void MainWindow::on_actionZoom_Selection_triggered()
+{
+  ui->zoomView->zoomToSelection();
+}
+
+void MainWindow::on_actionZoom_In_triggered()
+{
+  ui->zoomView->zoomIn();
+}
+
+void MainWindow::on_actionZoom_Out_triggered()
+{
+  ui->zoomView->zoomOut();
+}

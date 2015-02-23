@@ -14,6 +14,9 @@ public:
   void drawWave(const Wave *wave);
   void drawPixmap(QGraphicsPixmapItem *item, unsigned int wavePos);
   QGraphicsItem *markerAt(QPoint pos);
+  void zoomIn();
+  void zoomOut();
+  void zoomToSelection();
 
 private:
   bool isDragging;
@@ -25,6 +28,7 @@ private:
   std::vector<QGraphicsPixmapItem *> pixmaps;
   const Wave *wave;
 
+  void initScene(void);
   float pixmapHeight(void) const;
   void checkZoomLevel(void);
   void updateGraphics(void);

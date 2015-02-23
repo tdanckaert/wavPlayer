@@ -26,24 +26,30 @@ WaveView::WaveView(QWidget *parent) :
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
-  indicator = scene()->addLine(0,0,0,0);
+  initScene();
+  
+  indicator->setVisible(false);
 }
 
-void WaveView::drawWave(const Wave *wave) {
-  pixmaps.clear();
-  scene()->clear();
+void WaveView::initScene() {
+  selection = scene()->addRect(QRectF(0.0,0.0,1,1));
+  selection->setVisible(false);
+  selection->setOpacity(0.3);
+  selection->setBrush(Qt::blue);
+  selection->setZValue(-0.5);
 
   QPen pen;
   pen.setCosmetic(true);
   pen.setColor(Qt::green);
   indicator = scene()->addLine(0,0,0,pixmapHeight(), pen);
   indicator->setZValue(0.5); // draw on top of pixmaps
+}
 
-  selection = scene()->addRect(QRectF(0.0,0.0,1,1));
-  selection->setVisible(false);
-  selection->setOpacity(0.3);
-  selection->setBrush(Qt::blue);
-  selection->setZValue(-0.5);
+void WaveView::drawWave(const Wave *wave) {
+  pixmaps.clear();
+  scene()->clear();
+
+  initScene();
 
   this->wave = wave;
 
@@ -53,6 +59,8 @@ void WaveView::drawWave(const Wave *wave) {
   maxAmplitude = fabs(*std::max_element(wave->samples.begin(), wave->samples.end(), 
                                         [] (decltype(wave->samples[0]) a, decltype(wave->samples[0]) b) { return fabs(a) < fabs(b); }));
 
+  QPen pen;
+  pen.setCosmetic(true);
   pen.setColor(Qt::black);
   scene()->addLine(0, 0.5*pixmapHeight(), static_cast<float>(wave->samples.size()/wave->channels), 0.5*pixmapHeight(), pen);
 
@@ -103,8 +111,23 @@ void WaveView::wheelEvent(QWheelEvent *event) {
         // center - scaleFact * delta_x
         // put it back at a distance delta_x from the center:
         centerOn(mapToScene(width()-event->x() - scaleFact*delta_x, 0));
+      }
     }
   }
+}
+
+void WaveView::zoomIn() {
+  if(zoomLevel > 1.0)
+    setTransform(transform() * QTransform::fromScale(1.15, 1.0) );
+}
+
+void WaveView::zoomOut() {
+  setTransform(transform() * QTransform::fromScale(1/1.15, 1.0) );
+}
+
+void WaveView::zoomToSelection() {
+  if (selection->isVisible())
+    fitInView(selection->rect());
 }
 
 void WaveView::mousePressEvent(QMouseEvent *event) {
@@ -147,7 +170,7 @@ void WaveView::mouseReleaseEvent(QMouseEvent *event) {
 
     // if we are making a selection and the left mouse button is
     // released, this is the end of making the selection
-    if (selection && selection->isVisible()
+    if (selection->isVisible()
         && event->modifiers() == Qt::NoModifier) {
       auto rect = selection->rect();
       if (rect.right() > scene()->width() ) {

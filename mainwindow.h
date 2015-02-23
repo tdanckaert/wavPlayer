@@ -38,6 +38,9 @@ private slots:
   void on_actionStop_triggered();
   void on_actionExport_triggered();
   void enableExport(bool enabled);
+  void on_actionZoom_Selection_triggered();
+  void on_actionZoom_In_triggered();
+  void on_actionZoom_Out_triggered();
 };
 
 #endif // MAINWINDOW_H

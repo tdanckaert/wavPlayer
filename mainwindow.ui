@@ -130,6 +130,9 @@
    <addaction name="actionPause"/>
    <addaction name="actionStop"/>
    <addaction name="actionLoop"/>
+   <addaction name="actionZoom_Selection"/>
+   <addaction name="actionZoom_In"/>
+   <addaction name="actionZoom_Out"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpen">
@@ -171,6 +174,21 @@
   <action name="actionExport">
    <property name="text">
     <string>Export</string>
+   </property>
+  </action>
+  <action name="actionZoom_Selection">
+   <property name="text">
+    <string>Zoom Selection</string>
+   </property>
+  </action>
+  <action name="actionZoom_In">
+   <property name="text">
+    <string>Zoom In</string>
+   </property>
+  </action>
+  <action name="actionZoom_Out">
+   <property name="text">
+    <string>Zoom Out</string>
    </property>
   </action>
  </widget>
