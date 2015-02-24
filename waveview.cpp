@@ -89,28 +89,25 @@ void WaveView::resizeEvent(QResizeEvent* event ) {
 
 void WaveView::wheelEvent(QWheelEvent *event) {
   if (isInteractive() ) {
-    if (event->orientation() == Qt::Horizontal) {
-      // scroll view horizontally
+    if (event->orientation() == Qt::Horizontal) { // horizontal: scroll view
       QGraphicsView::wheelEvent(event);
-    } else {
-      // vertical: zoom in/out
-      auto scaleFact = event->delta() > 0
-        ? 1.10 : 1/1.10;
-      // don't zoom in further if zoomLevel is already smaller than 1
-      if (scaleFact < 1.0 || zoomLevel > 1.0) {
+    } else { // vertical: zoom in/out
+      if (event->delta() < 0) { // zoom out
+        setTransform(transform() * QTransform::fromScale(1/1.10, 1.0) );
+      } else if (zoomLevel > 1.0) { // zoom in, until zoomLevel is 1
         // we want to scale, keeping the point under the current mouse
         // position at the same position (in view coordinates).
         // QGraphicsView::setTransform() will keep the center of
         // viewport in the same place -> scale and scroll to a new
         // position to achieve the effect we want
-
+        auto scaleFact = 1.10;
         setTransform(transform() * QTransform::fromScale(scaleFact,1.0) );
 
         auto delta_x = 0.5*width() - event->x(); // distance from center before transformation
         // after rescaling, the point below the mouse position is at the position
         // center - scaleFact * delta_x
         // put it back at a distance delta_x from the center:
-        centerOn(mapToScene(width()-event->x() - scaleFact*delta_x, 0));
+        centerOn(mapToScene(width() - event->x() - scaleFact*delta_x, 0));
       }
     }
   }
@@ -126,14 +123,16 @@ void WaveView::zoomOut() {
 }
 
 void WaveView::zoomToSelection() {
-  if (selection->isVisible())
-    fitInView(selection->rect());
+  if (selection->isVisible()) {
+    auto rect = selection->rect();
+    fitInView(rect.x(), 0, rect.width(), scene()->height());
+  }
 }
 
 void WaveView::mousePressEvent(QMouseEvent *event) {
   QGraphicsView::mousePressEvent(event);
   qDebug() << "Mouse event at"<< event->x() << event->y() << mapToScene(event->x(),event->y());
-  if (wave) {
+  if (wave && isInteractive() ) {
     // left mouse button press event signals start of selection
     // (unless a marker is selected, in which case we want to move the
     // marker and not make a selection
@@ -163,7 +162,7 @@ QGraphicsItem* WaveView::markerAt(QPoint pos) {
 
 void WaveView::mouseReleaseEvent(QMouseEvent *event) {
   QGraphicsView::mouseReleaseEvent(event);
-  if (event->button() == Qt::LeftButton) {
+  if (event->button() == Qt::LeftButton && isInteractive() ) {
     isDragging = false;
     qDebug() << __func__ << ": x() = " << event->x() 
              << ", " << " dragStart.x() = " << dragStart.x();
