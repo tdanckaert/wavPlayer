@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <math>
 
 using std::array;
 using std::unique_ptr;
