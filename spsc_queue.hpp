@@ -14,6 +14,7 @@
 #include <memory>
 #include <utility>
 
+#include <boost/next_prior.hpp>
 #include <boost/aligned_storage.hpp>
 #include <boost/assert.hpp>
 #ifdef BOOST_NO_CXX11_DELETED_FUNCTIONS
@@ -25,7 +26,45 @@
 #include <boost/type_traits/has_trivial_destructor.hpp>
 
 #include <boost/lockfree/detail/atomic.hpp>
-#include <boost/lockfree/detail/branch_hints.hpp>
+//  branch hints
+//  Copyright (C) 2007, 2008 Tim Blechmann
+//
+//  Distributed under the Boost Software License, Version 1.0. (See
+//  accompanying file LICENSE_1_0.txt or copy at
+//  http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_LOCKFREE_BRANCH_HINTS_HPP_INCLUDED
+#define BOOST_LOCKFREE_BRANCH_HINTS_HPP_INCLUDED
+
+namespace boost    {
+namespace lockfree {
+namespace detail   {
+/** \brief hint for the branch prediction */
+inline bool likely(bool expr)
+{
+#ifdef __GNUC__
+    return __builtin_expect(expr, true);
+#else
+    return expr;
+#endif
+    }
+
+/** \brief hint for the branch prediction */
+inline bool unlikely(bool expr)
+{
+#ifdef __GNUC__
+    return __builtin_expect(expr, false);
+#else
+    return expr;
+#endif
+}
+
+} /* namespace detail */
+} /* namespace lockfree */
+} /* namespace boost */
+
+#endif /* BOOST_LOCKFREE_BRANCH_HINTS_HPP_INCLUDED */
+//#include <boost/lockfree/detail/branch_hints.hpp>
 #include <boost/lockfree/detail/parameter.hpp>
 #include <boost/lockfree/detail/prefix.hpp>
 
